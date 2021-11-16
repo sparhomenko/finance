@@ -1,0 +1,8 @@
+package = []
+
+[metadata]
+lock-version = "1.1"
+python-versions = "3.10.0" # renovate github-tags:python/cpython:^v(?<version>.*)$
+content-hash = "ca1d8fec9351d90472f14f720b2c74ddd3add239741b5c87720e43ae101b5af4"
+
+[metadata.files]
