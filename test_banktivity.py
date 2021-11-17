@@ -1,26 +1,47 @@
 import pytest
-from banktivity import open_doc
+from banktivity import Document
 
 DOC = 'Test'
 PASSWORD = 'ZkzbFhr*!z9DWmuD2JXLadgr'
+DOC = Document(DOC, PASSWORD)
 
 
-def test_open_doc():
-    [id, key] = open_doc(DOC, PASSWORD)
-    assert id > 0
-    assert key is not None
+def test_sync():
+    name = 'Test'
+    DOC.load()
+    DOC.create_account(name)
+    DOC.save()
+    DOC.load()
+
+    account = DOC.entity_by_name[('Account', 'Test')]
+    assert account.name == name
+    assert account.currency.code == 'EUR'
+    assert account.type == Document.Account.IGGCSyncAccountingAccountType.ASSET
+    assert account.subtype == Document.Account.IGGCSyncAccountingAccountSubtype.CHECKING
 
 
-def test_open_doc_invalid_credentials():
+def test_invalid_credentials():
     with pytest.raises(ValueError):
-        open_doc(DOC, PASSWORD, 'invalid', 'invalid')
+        Document(DOC, PASSWORD, ('invalid', 'invalid'))
 
 
-def test_open_doc_invalid_doc():
+def test_invalid_doc():
     with pytest.raises(ValueError):
-        open_doc('invalid', PASSWORD)
+        Document('invalid', PASSWORD)
 
 
-def test_open_doc_invalid_password():
+def test_invalid_password():
     with pytest.raises(ValueError):
-        open_doc(DOC, 'invalid')
+        Document(DOC, 'invalid')
+
+
+def test_parse_object_invalid_type():
+    with pytest.raises(TypeError):
+        DOC.parse_object({'@type': 'Account', 'field': {'@type': 'invalid'}})
+
+
+def test_unparse_object_invalid_type():
+    class Invalid:
+        field = {}
+    with pytest.raises(TypeError):
+        DOC.unparse_object(Invalid)
