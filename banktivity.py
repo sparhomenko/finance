@@ -1,6 +1,7 @@
 import abc
 import base64
 import dataclasses
+import datetime
 import decimal
 import enum
 import gzip
@@ -23,11 +24,11 @@ KEY_SIZE = 16
 class Document:
     @dataclasses.dataclass
     class Entity(abc.ABC):
-        name: str
-        id: str = str(uuid.uuid4()).upper()
+        id: str = dataclasses.field(default_factory=lambda: str(uuid.uuid4()).upper())
 
     @dataclasses.dataclass
     class Currency(Entity):
+        name: str = None
         code: str = None
 
     @dataclasses.dataclass
@@ -40,6 +41,7 @@ class Document:
         class IGGCSyncAccountingAccountSubtype(enum.Enum):
             CHECKING = 'checking'
 
+        name: str = None
         currency: typing.Optional['Document.Currency'] = None
         type: IGGCSyncAccountingAccountType = IGGCSyncAccountingAccountType.ASSET
         subtype: IGGCSyncAccountingAccountSubtype = IGGCSyncAccountingAccountSubtype.CHECKING
@@ -51,7 +53,45 @@ class Document:
 
     @dataclasses.dataclass
     class Group(Entity):
+        name: str = None
         orderedItems: list['Document.GroupItem'] = None
+
+    @dataclasses.dataclass
+    class TransactionTypeV2(Entity):
+        pass
+
+    @dataclasses.dataclass
+    class TransactionType:
+        class IGGCSyncAccountingTransactionBaseType(enum.Enum):
+            DEPOSIT = 'deposit'
+            WITHDRAWAL = 'withdrawal'
+
+        baseType: IGGCSyncAccountingTransactionBaseType = None
+        transactionType: 'Document.TransactionTypeV2' = None
+
+    @dataclasses.dataclass
+    class Transaction(Entity):
+        transactionType: 'Document.TransactionType' = None
+        note: str = None
+        date: datetime.datetime = None
+        currency: 'Document.Currency' = None
+        lineItems: list['Document.LineItem'] = None
+
+    @dataclasses.dataclass
+    class LineItem:
+        account: typing.Optional['Document.Account'] = None
+        accountAmount: decimal = None
+        transacitonAmount: decimal = None
+        identifier: str = dataclasses.field(default_factory=lambda: str(uuid.uuid4()).upper())
+        sortIndex: int = 0
+
+    @dataclasses.dataclass
+    class LineItemSource:
+        pass
+
+    @dataclasses.dataclass
+    class SecurityLineItem:
+        pass
 
     def __init__(self, name, password, credentials=(os.environ['BANKTIVITY_LOGIN'], os.environ['BANKTIVITY_PASSWORD'])):
         self.url = 'https://apollo.iggnetservices.com/apollo'
@@ -120,15 +160,20 @@ class Document:
                         value = text
                     case 'bool':
                         value = text == 'yes'
+                    case 'int':
+                        value = int(text)
                     case 'decimal':
                         value = decimal.Decimal(text)
+                    case 'date':
+                        value = datetime.datetime.strptime(text, '%Y-%m-%dT%H:%M:%S%z')
                     case 'reference':
-                        value = self.entity_by_id[tuple(text.split(':'))]
+                        value = self.entities[tuple(text.split(':'))]
                     case _:
                         raise TypeError(field_type)
             data[field['@name']] = value
+        for record in self.child_list(entity, 'record'):
+            data[record['@name']] = self.parse_object(record)
         for collection in self.child_list(entity, 'collection'):
-            assert collection['@type'] == 'array'
             data[collection['@name']] = list(map(self.parse_object, self.child_list(collection, 'record')))
         return dacite.from_dict(klass, data, dacite.Config(check_types=False))
 
@@ -138,41 +183,69 @@ class Document:
 
     def load(self):
         self.sync_token = self.api('entities/status')['syncToken']
-        self.entity_by_id = {}
-        self.entity_by_name = {}
-        for entity_type in ['Currency', 'Account', 'Group']:
-            for entity in self.api('entities', params={'type': entity_type})['entities']:
+        self.entities = {}
+        self.currencies = {}
+        self.accounts = {}
+        for entity_type in ['Currency', 'Account', 'Group', 'TransactionTypeV2', 'Transaction']:
+            for entity in self.api('entities', params={'type': entity_type}).get('entities', []):
                 entity = self.parse_entity(entity)
-                self.entity_by_id[(entity_type, entity.id)] = entity
-                self.entity_by_name[(entity_type, entity.name)] = entity
+                self.entities[(entity_type, entity.id)] = entity
+                if entity_type == 'Currency':
+                    self.currencies[entity.code] = entity
+                elif entity_type == 'Account':
+                    self.accounts[entity.name] = entity
+        self.default_currency = self.currencies['EUR']
+        self.transaction_type_withdrawal = Document.TransactionType(
+            baseType=Document.TransactionType.IGGCSyncAccountingTransactionBaseType.WITHDRAWAL,
+            transactionType=self.entities[('TransactionTypeV2', 'XXX-Withdrawal-ID')]
+        )
+
         self.created = []
         self.updated = []
 
     def unparse_object(self, object):
-        fields = []
-        collections = []
+        result = {'@type': object.__class__.__name__, 'field': [], 'record': [], 'collection': []}
         for name, value in object.__dict__.items():
             if name == 'id' or value is None:
                 continue
-            e = {'@name': name}
-            elements = fields
+            el_type = 'field'
+            el = {}
             if type(value) == str:
-                e['@type'] = 'string'
-                e['#text'] = value
+                el['@type'] = 'string'
+                el['#text'] = value
+            elif type(value) == int:
+                el['@type'] = 'int'
+                el['#text'] = str(value)
+            elif type(value) == decimal.Decimal:
+                el['@type'] = 'decimal'
+                el['#text'] = str(value)
+            elif type(value) == datetime.datetime:
+                assert value.tzinfo
+                el['@type'] = 'date'
+                el['#text'] = value.isoformat(timespec='seconds')
+            elif type(value) == Document.TransactionType:
+                el_type = 'record'
+                el = self.unparse_object(value)
             elif type(value) == list:
-                e['@type'] = 'array'
-                e['record'] = map(self.unparse_object, value)
-                elements = collections
+                el_type = 'collection'
+                el['@type'] = 'array'
+                items = []
+                for item in value:
+                    item = self.unparse_object(item)
+                    item['@name'] = 'element'
+                    items.append(item)
+                el['record'] = items
             elif isinstance(value, enum.Enum):
-                e['@enum'] = value.__class__.__name__
-                e['#text'] = value.value
+                el['@enum'] = value.__class__.__name__
+                el['#text'] = value.value
             elif isinstance(value, Document.Entity):
-                e['@type'] = 'reference'
-                e['#text'] = f'{value.__class__.__name__}:{value.id}'
+                el['@type'] = 'reference'
+                el['#text'] = f'{value.__class__.__name__}:{value.id}'
             else:
                 raise TypeError(type(value))
-            elements.append(e)
-        return {'@type': object.__class__.__name__, 'field': fields, 'collection': collections}
+            el['@name'] = name
+            result[el_type].append(el)
+        return result
 
     def unparse_entity(self, entity):
         data = self.unparse_object(entity)
@@ -190,9 +263,22 @@ class Document:
         self.updated = []
 
     def create_account(self, name):
-        account = Document.Account(name=name, currency=self.entity_by_name[('Currency', 'Euro')])
+        account = Document.Account(name=name, currency=self.currencies['EUR'])
         self.created.append(account)
-        group = self.entity_by_id[('Group', 'com.iggsoftware.accounting.group.accounts')]
+        group = self.entities[('Group', 'com.iggsoftware.accounting.group.accounts')]
         group.orderedItems.append(Document.GroupItem(account.id))
         self.updated.append(group)
         return account
+
+    def create_transaction(self, account, amount, **args):
+        transaction = Document.Transaction(
+            currency=self.default_currency,
+            date=datetime.datetime.now(tz=datetime.timezone.utc),
+            transactionType=self.transaction_type_withdrawal,
+            lineItems=[
+                Document.LineItem(account=account, accountAmount=amount, transacitonAmount=amount),
+                Document.LineItem(accountAmount=-amount, transacitonAmount=-amount)
+            ], **args
+        )
+        self.created.append(transaction)
+        return transaction

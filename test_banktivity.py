@@ -1,23 +1,43 @@
+import decimal
+
 import pytest
+
 from banktivity import Document
 
 DOC = 'Test'
 PASSWORD = 'ZkzbFhr*!z9DWmuD2JXLadgr'
 DOC = Document(DOC, PASSWORD)
+DOC.load()
 
 
-def test_sync():
+def test_account():
     name = 'Test'
-    DOC.load()
     DOC.create_account(name)
     DOC.save()
     DOC.load()
 
-    account = DOC.entity_by_name[('Account', 'Test')]
+    account = DOC.accounts[name]
     assert account.name == name
     assert account.currency.code == 'EUR'
     assert account.type == Document.Account.IGGCSyncAccountingAccountType.ASSET
     assert account.subtype == Document.Account.IGGCSyncAccountingAccountSubtype.CHECKING
+
+
+def test_transaction():
+    account = DOC.accounts['Checking']
+    amount = decimal.Decimal(-1)
+    note = 'Test'
+    id = DOC.create_transaction(account, amount, note=note).id
+    DOC.save()
+    DOC.load()
+
+    transaction = DOC.entities[('Transaction', id)]
+    assert transaction.transactionType.baseType == Document.TransactionType.IGGCSyncAccountingTransactionBaseType.WITHDRAWAL
+    assert transaction.note == note
+    assert transaction.currency.code == 'EUR'
+    assert transaction.lineItems[0].account == account
+    assert transaction.lineItems[0].accountAmount == transaction.lineItems[0].transacitonAmount == amount
+    assert transaction.lineItems[1].accountAmount == transaction.lineItems[1].transacitonAmount == -amount
 
 
 def test_invalid_credentials():
