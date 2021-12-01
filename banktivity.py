@@ -10,18 +10,34 @@ import io
 import os
 import secrets
 import typing
+import urllib
 import uuid
 
+import bpylist2.archiver
+import bpylist2.archive_types
 import Crypto.Cipher.AES
 import Crypto.Util.Padding
 import dacite
 import requests
 import xmltodict
 
+import core
+
 KEY_SIZE = 16
 
 
 class Document:
+    CATEGORIES = {
+        core.Account.Transaction.Line.Category.CHILDREN:        'Child/Dependent Expenses',
+        core.Account.Transaction.Line.Category.GROCERIES:       'Groceries',
+        core.Account.Transaction.Line.Category.FEE:             'Service Charges/Fees',
+        core.Account.Transaction.Line.Category.HEALTHCARE:      'Medical/Healthcare',
+        core.Account.Transaction.Line.Category.INTEREST:        'Interest Paid',
+        core.Account.Transaction.Line.Category.INTEREST_INCOME: 'Interest Income',
+        core.Account.Transaction.Line.Category.TAKEAWAY:        'Dining/Restaurants',
+        core.Account.Transaction.Line.Category.UTILITIES:       'Utilities'
+    }
+
     @dataclasses.dataclass
     class Entity(abc.ABC):
         id: str = dataclasses.field(default_factory=lambda: str(uuid.uuid4()).upper())
@@ -33,18 +49,69 @@ class Document:
 
     @dataclasses.dataclass
     class Account(Entity):
+        class IGGCSyncAccountingAccountClass(enum.Enum):
+            CURRENT = 'current'
+            CREDIT_CARD = 'credit-card'
+            CHECKING = 'checking'
+            SAVINGS = 'savings'
+            MORTGAGE = 'mortgage'
+            EXPENSE = 'expense'
+            REVENUE = 'revenue'
+            REAL_ESTATE = 'real-estate'
+
         class IGGCSyncAccountingAccountType(enum.Enum):
             ASSET = 'asset'
+            LIABILITY = 'liability'
             INCOME = 'income'
             EXPENSE = 'expense'
 
         class IGGCSyncAccountingAccountSubtype(enum.Enum):
+            ASSET = 'asset'
             CHECKING = 'checking'
+            CREDIT_CARD = 'credit-card'
+            SAVINGS = 'savings'
+            MORTGAGE = 'mortgage'
+
+        TYPES = {
+            core.Account.Type.CURRENT:     (IGGCSyncAccountingAccountClass.CURRENT,     IGGCSyncAccountingAccountType.ASSET,     IGGCSyncAccountingAccountSubtype.CHECKING),
+            core.Account.Type.SAVINGS:     (IGGCSyncAccountingAccountClass.SAVINGS,     IGGCSyncAccountingAccountType.ASSET,     IGGCSyncAccountingAccountSubtype.SAVINGS),
+            core.Account.Type.CREDIT_CARD: (IGGCSyncAccountingAccountClass.CREDIT_CARD, IGGCSyncAccountingAccountType.LIABILITY, IGGCSyncAccountingAccountSubtype.CREDIT_CARD),
+            core.Account.Type.MORTGAGE:    (IGGCSyncAccountingAccountClass.MORTGAGE,    IGGCSyncAccountingAccountType.LIABILITY, IGGCSyncAccountingAccountSubtype.MORTGAGE),
+            core.Account.Type.PROPERTY:    (IGGCSyncAccountingAccountClass.REAL_ESTATE, IGGCSyncAccountingAccountType.ASSET,     IGGCSyncAccountingAccountSubtype.ASSET)
+        }
 
         name: str = None
+        note: str = None
         currency: typing.Optional['Document.Currency'] = None
-        type: IGGCSyncAccountingAccountType = IGGCSyncAccountingAccountType.ASSET
-        subtype: IGGCSyncAccountingAccountSubtype = IGGCSyncAccountingAccountSubtype.CHECKING
+        accountClass: IGGCSyncAccountingAccountClass = None
+        type: IGGCSyncAccountingAccountType = None
+        subtype: IGGCSyncAccountingAccountSubtype = None
+        bankAccountNumber: str = None
+        bankRoutingNumber: str = None
+        institutionName: str = None
+        institutionSite: urllib.parse.ParseResult = None
+
+    @dataclasses.dataclass
+    class LoanInfo(Entity):
+        @dataclasses.dataclass
+        class Recurrence(bpylist2.archive_types.DataclassArchiver):
+            monthsOfTheYear: list = None
+            weeksOfTheYear: list = None
+            setPositions: list = None
+            daysOfTheWeek: list = None
+            daysOfTheMonth: list = None
+            daysOfTheYear: list = None
+            frequency: int = 8
+            absolute: bool = False
+            anchorIndex: int = 1
+            interval: int = 1
+        interestRate: decimal.Decimal = None
+        loanAccount: 'Document.Account' = None
+        minimumPrincipalAndInterest: decimal.Decimal = None
+        paymentIntervalData: Recurrence = Recurrence(daysOfTheMonth=[1])
+        paymentsPerYear = 12
+
+        bpylist2.archiver.update_class_map({'IGGFDateRecurrenceRule': Recurrence})
 
     @dataclasses.dataclass
     class GroupItem:
@@ -54,7 +121,7 @@ class Document:
     @dataclasses.dataclass
     class Group(Entity):
         name: str = None
-        orderedItems: list['Document.GroupItem'] = None
+        orderedItems: list['Document.GroupItem'] = dataclasses.field(default_factory=list)
 
     @dataclasses.dataclass
     class TransactionTypeV2(Entity):
@@ -65,6 +132,7 @@ class Document:
         class IGGCSyncAccountingTransactionBaseType(enum.Enum):
             DEPOSIT = 'deposit'
             WITHDRAWAL = 'withdrawal'
+            TRANSFER = 'transfer'
 
         baseType: IGGCSyncAccountingTransactionBaseType = None
         transactionType: 'Document.TransactionTypeV2' = None
@@ -72,9 +140,12 @@ class Document:
     @dataclasses.dataclass
     class Transaction(Entity):
         transactionType: 'Document.TransactionType' = None
+        title: str = None
         note: str = None
         date: datetime.datetime = None
         currency: 'Document.Currency' = None
+        adjustment: bool = False
+        checkNumber: int = None
         lineItems: list['Document.LineItem'] = None
 
     @dataclasses.dataclass
@@ -84,6 +155,8 @@ class Document:
         transacitonAmount: decimal = None
         identifier: str = dataclasses.field(default_factory=lambda: str(uuid.uuid4()).upper())
         sortIndex: int = 0
+        cleared: bool = True
+        memo: str = None
 
     @dataclasses.dataclass
     class LineItemSource:
@@ -166,8 +239,13 @@ class Document:
                         value = decimal.Decimal(text)
                     case 'date':
                         value = datetime.datetime.strptime(text, '%Y-%m-%dT%H:%M:%S%z')
+                    case 'url':
+                        value = urllib.parse.urlparse(text)
                     case 'reference':
-                        value = self.entities[tuple(text.split(':'))]
+                        parts = tuple(text.split(':'))
+                        value = None if parts[1] == '(null)' else self.entities[parts]
+                    case 'data':
+                        value = bpylist2.archiver.unarchive(base64.b64decode(text))
                     case _:
                         raise TypeError(field_type)
             data[field['@name']] = value
@@ -179,29 +257,42 @@ class Document:
 
     def parse_entity(self, entity):
         xml = gzip.decompress(self.decrypt(io.BytesIO(base64.b64decode(entity['data']))))
-        return self.parse_object(xmltodict.parse(xml)['entity'])
+        result = self.parse_object(xmltodict.parse(xml)['entity'])
+        return result
 
     def load(self):
         self.sync_token = self.api('entities/status')['syncToken']
         self.entities = {}
         self.currencies = {}
+        self.groups = {}
         self.accounts = {}
-        for entity_type in ['Currency', 'Account', 'Group', 'TransactionTypeV2', 'Transaction']:
+        for entity_type in ['Currency', 'Account', 'LoanInfo', 'Group', 'TransactionTypeV2', 'Transaction']:
             for entity in self.api('entities', params={'type': entity_type}).get('entities', []):
                 entity = self.parse_entity(entity)
                 self.entities[(entity_type, entity.id)] = entity
                 if entity_type == 'Currency':
                     self.currencies[entity.code] = entity
+                elif entity_type == 'Group':
+                    self.groups[entity.name] = entity
                 elif entity_type == 'Account':
                     self.accounts[entity.name] = entity
         self.default_currency = self.currencies['EUR']
+        self.transaction_type_deposit = Document.TransactionType(
+            baseType=Document.TransactionType.IGGCSyncAccountingTransactionBaseType.DEPOSIT,
+            transactionType=self.entities[('TransactionTypeV2', 'XXX-Deposit-ID')]
+        )
         self.transaction_type_withdrawal = Document.TransactionType(
             baseType=Document.TransactionType.IGGCSyncAccountingTransactionBaseType.WITHDRAWAL,
             transactionType=self.entities[('TransactionTypeV2', 'XXX-Withdrawal-ID')]
         )
+        self.transaction_type_transfer = Document.TransactionType(
+            baseType=Document.TransactionType.IGGCSyncAccountingTransactionBaseType.TRANSFER,
+            transactionType=self.entities[('TransactionTypeV2', 'XXX-Transfer-ID')]
+        )
 
         self.created = []
         self.updated = []
+        self.deleted = []
 
     def unparse_object(self, object):
         result = {'@type': object.__class__.__name__, 'field': [], 'record': [], 'collection': []}
@@ -213,6 +304,9 @@ class Document:
             if type(value) == str:
                 el['@type'] = 'string'
                 el['#text'] = value
+            elif type(value) == bool:
+                el['@type'] = 'bool'
+                el['#text'] = 'yes' if value else 'no'
             elif type(value) == int:
                 el['@type'] = 'int'
                 el['#text'] = str(value)
@@ -223,6 +317,9 @@ class Document:
                 assert value.tzinfo
                 el['@type'] = 'date'
                 el['#text'] = value.isoformat(timespec='seconds')
+            elif type(value) == urllib.parse.ParseResult:
+                el['@type'] = 'url'
+                el['#text'] = urllib.parse.urlunparse(value)
             elif type(value) == Document.TransactionType:
                 el_type = 'record'
                 el = self.unparse_object(value)
@@ -238,6 +335,9 @@ class Document:
             elif isinstance(value, enum.Enum):
                 el['@enum'] = value.__class__.__name__
                 el['#text'] = value.value
+            elif isinstance(value, bpylist2.archive_types.DataclassArchiver):
+                el['@type'] = 'data'
+                el['#text'] = base64.b64encode(bpylist2.archiver.archive(value))
             elif isinstance(value, Document.Entity):
                 el['@type'] = 'reference'
                 el['#text'] = f'{value.__class__.__name__}:{value.id}'
@@ -257,28 +357,98 @@ class Document:
         self.api('entities/entity', json={
             'syncToken': self.sync_token,
             'create': list(map(self.unparse_entity, self.created)),
-            'update': list(map(self.unparse_entity, self.updated))
+            'update': list(map(self.unparse_entity, self.updated)),
+            'delete': list(map(self.unparse_entity, self.deleted))
         })
         self.created = []
         self.updated = []
+        self.deleted = []
 
-    def create_account(self, name):
-        account = Document.Account(name=name, currency=self.currencies['EUR'])
+    def clear(self):
+        for key, entity in list(self.entities.items()):
+            if key[0] == 'Account' and entity.accountClass not in [Document.Account.IGGCSyncAccountingAccountClass.REVENUE, Document.Account.IGGCSyncAccountingAccountClass.EXPENSE] or key[0] in ['Transaction', 'LoanInfo']:
+                del self.entities[key]
+                self.deleted.append(entity)
+                if key[0] == 'Account':
+                    del self.accounts[entity.name]
+
+    def create_account(self, a):
+        typ = Document.Account.TYPES[a.type]
+        account = Document.Account(
+            name=a.name,
+            note=a.description,
+            currency=self.default_currency,
+            bankAccountNumber=a.number,
+            bankRoutingNumber=a.routing_number,
+            institutionName=a.bank_name,
+            institutionSite=urllib.parse.urlparse(a.bank_site),
+            accountClass=typ[0],
+            type=typ[1],
+            subtype=typ[2]
+        )
         self.created.append(account)
-        group = self.entities[('Group', 'com.iggsoftware.accounting.group.accounts')]
+        self.accounts[a.name] = account
+
+        if a.interest_rate is not None:
+            self.created.append(Document.LoanInfo(
+                loanAccount=account,
+                interestRate=a.interest_rate,
+                minimumPrincipalAndInterest=a.monthly_payment
+            ))
+
+        group_name = a.group or 'Accounts'
+        group = self.groups.get(group_name, None)
+        if group is None:
+            group = Document.Group(name=group_name)
+            self.created.append(group)
+            self.groups[group_name] = group
+            root = self.groups['Accounts']
+            root.orderedItems.append(Document.GroupItem(group.id, 'IGGCAccountingGroup'))
+            self.updated.append(root)
+        else:
+            self.updated.append(group)
         group.orderedItems.append(Document.GroupItem(account.id))
-        self.updated.append(group)
+
+        self.create_transaction(core.Account.Transaction(
+            account,
+            core.BEGINNING - datetime.timedelta(days=1),
+            'STARTING BALANCE',
+            'BALANCE ADJUSTMENT',
+            True,
+            lines=[core.Account.Transaction.Line(a.initial_balance)]),
+            adjustment=True
+        )
         return account
 
-    def create_transaction(self, account, amount, **args):
+    def create_transaction(self, t, adjustment=False):
+        account = self.accounts[t.account.name]
+        counter_account = None if t.counter_account is None else self.accounts[t.counter_account.name]
+        if counter_account:
+            transaction_type = self.transaction_type_transfer
+        elif t.is_withdrawal():
+            transaction_type = self.transaction_type_withdrawal
+        else:
+            transaction_type = self.transaction_type_deposit
+        lines = [Document.LineItem(account=account, accountAmount=t.total(), transacitonAmount=t.total(), cleared=t.cleared)]
+        for line in t.lines:
+            lines.append(Document.LineItem(
+                account=None if line.category is None else self.accounts[Document.CATEGORIES[line.category]],
+                accountAmount=-line.amount,
+                transacitonAmount=-line.amount,
+                cleared=t.cleared,
+                memo=line.description
+            ))
+        if counter_account is not None:
+            lines[-1].account = counter_account
         transaction = Document.Transaction(
             currency=self.default_currency,
-            date=datetime.datetime.now(tz=datetime.timezone.utc),
-            transactionType=self.transaction_type_withdrawal,
-            lineItems=[
-                Document.LineItem(account=account, accountAmount=amount, transacitonAmount=amount),
-                Document.LineItem(accountAmount=-amount, transacitonAmount=-amount)
-            ], **args
+            date=t.date,
+            transactionType=transaction_type,
+            title=t.payee,
+            note=t.description,
+            lineItems=lines,
+            checkNumber=t.number,
+            adjustment=adjustment
         )
         self.created.append(transaction)
         return transaction

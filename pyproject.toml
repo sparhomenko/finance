@@ -11,6 +11,9 @@ requests = "^2.26.0"
 xmltodict = "^0.12.0"
 pycryptodome = "^3.11.0"
 dacite = "^1.6.0"
+cryptography = "^36.0.0"
+pytz = "^2021.3"
+bpylist2 = "^4.0.1"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^4.0.1"
