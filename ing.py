@@ -173,8 +173,6 @@ class Profile:
             if number in blacklist:
                 continue
             name = agreement.get('displayAlias', agreement.get('holderName'))
-            if name == 'Nanny':
-                continue
             agreement_type = agreement['type']
             if agreement_type in ['MORTGAGE', 'CARD']:
                 agreement = self.fetch_link(agreement, 'expensiveDetails')
@@ -206,16 +204,15 @@ class Profile:
                     break
                 next = (response, 'next')
                 for transaction in response['transactions']:
-                    t = core.Account.Transaction(
-                        account,
+                    t = core.Transaction(
                         datetime.datetime.strptime(transaction['executionDate'], '%Y-%m-%d').replace(tzinfo=pytz.timezone('Europe/Amsterdam')),
                         transaction['subject'],
                         ' '.join(transaction.get('subjectLines', [])),
-                        not transaction.get('reservation', False),
-                        [core.Account.Transaction.Line(decimal.Decimal(transaction['amount']['value']))]
+                        [core.Transaction.Line(account, decimal.Decimal(transaction['amount']['value']))],
+                        not transaction.get('reservation', False)
                     )
                     if 'counterAccount' in transaction and transaction['counterAccount']['accountNumber']['type'] == 'IBAN':
-                        t.counter_account_number = transaction['counterAccount']['accountNumber']['value']
+                        t.lines[0].counter_account_number = transaction['counterAccount']['accountNumber']['value']
                     self.beautify_card_payment(transaction, t)
                     self.beautify_omschrijving(transaction, t)
                     self.beautify_credit_card(transaction, t)
@@ -225,9 +222,7 @@ class Profile:
                     self.beautify_hypotheken(transaction, t)
                     self.beautify_abnamro_tikkie(transaction, t)
                     self.beautify_savings_transfer(transaction, t)
-                    if t.counter_account_number is not None and t.matcher is None:
-                        t.matcher = lambda t, c: c.account.number == t.counter_account_number and c.lines[0].amount == -t.lines[0].amount
-                    if not account.transaction(t):
+                    if not t.complete():
                         more = False
         return accounts
 
@@ -266,34 +261,39 @@ class Profile:
                 fee = decimal.Decimal(transaction['fee']['value'])
                 t.lines[0].amount -= fee
                 t.lines[0].description = f"{transaction['sourceAmount']['value']} {transaction['sourceAmount']['currency']} * {transaction['exchangeRate']}"
-                t.lines.append(core.Account.Transaction.Line(fee, core.Account.Transaction.Line.Category.FEE, 'Currency exchange fee'))
+                t.lines.append(core.Transaction.Line(t.lines[0].account, fee, core.Transaction.Line.Category.FEE, 'Currency exchange fee'))
 
     def beautify_savings_transfer(self, transaction, t):
         if t.payee.startswith('Oranje spaarrekening '):
-            t.counter_account_number = t.payee.removeprefix('Oranje spaarrekening ')
+            t.lines[0].counter_account_number = t.payee.removeprefix('Oranje spaarrekening ')
 
     def beautify_aflossing(self, agreement, transaction, t):
         if transaction['type']['id'] == 'MAANDELIJKSE AFLOSSING':
-            t.counter_account_number = agreement['referenceAgreement']['number']
+            t.lines[0].ext_account_number = agreement['id'][:3]
+            t.lines[0].counter_account_number = agreement['referenceAgreement']['number']
 
     def beautify_creditcard_incasso(self, transaction, t):
         if t.payee.startswith('INCASSO CREDITCARD ACCOUNTNR '):
-            t.matcher = lambda t, c: c.account.type == core.Account.Type.CREDIT_CARD and c.lines[0].amount == -t.lines[0].amount
+            t.lines[0].counter_account_number = t.payee.removeprefix('INCASSO CREDITCARD ACCOUNTNR ')
 
     def beautify_hypotheken(self, transaction, t):
         if t.payee == 'ING Hypotheken':
-            t.counter_account_number = re.search(r'INZAKE HYP.NR. (.*)', t.description)[1]
+            t.lines[0].counter_account_number = re.search(r'INZAKE HYP.NR. (.+)', t.description)[1]
 
     def beautify_ing_betaalverzoek(self, transaction, t):
         if t.payee == 'ING Bank NV Betaalverzoek':
-            if t.is_withdrawal():
-                t.payee, t.description = re.match(r' (.*)[A-Z]{2}\d{2}[A-Z]{4}\d{10} \d* (.*) ING Betaalverzoek', t.description).groups()
+            if t.lines[0].amount < 0:
+                t.payee, t.description = re.match(r' (.+)[A-Z]{2}\d{2}[A-Z]{4}\d{10} \d+ (.+) ING Betaalverzoek', t.description).groups()
             else:
-                t.payee, t.description = re.match(r'Betaling van (.*) [A-Z]{2}\d{2}[A-Z]{4}\d{10} (.*)', t.description).groups()
+                t.payee, t.description = re.match(r'Betaling van (.+) [A-Z]{2}\d{2}[A-Z]{4}\d{10} (.+)', t.description).groups()
 
     def beautify_abnamro_tikkie(self, transaction, t):
         if t.payee == 'ABN AMRO Bank NV':
-            t.payee = re.match(r'\d+ \d+ (.*) [A-Z]{2}\d{2}[A-Z]{4}\d{10}', t.description)[1]
+            t.payee = re.match(r'\d+ \d+ (.+) [A-Z]{2}\d{2}[A-Z]{4}\d{10}', t.description)[1]
             t.description = None
         if t.payee == 'AAB INZ RETAIL IDEAL BET':
-            t.description, t.payee = re.match(r'Tikkie ID \d+, (.*), (.*), [A-Z]{2}\d{2}[A-Z]{4}\d{10}', t.description).groups()
+            t.description, t.payee = re.match(r'Tikkie ID \d+, (.+), (.+), [A-Z]{2}\d{2}[A-Z]{4}\d{10}', t.description).groups()
+
+    def beautify_sns_betaalverzoek(self, transaction, t):
+        if t.payee == 'SNS Betaalverzoek':
+            t.payee, t.description = re.match(r'(.+) \d+ [A-Z]{2}\d{2}[A-Z]{4}\d{10} .+', t.description).groups()

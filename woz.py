@@ -47,12 +47,11 @@ class Property:
             date = datetime.datetime.strptime(feature['properties']['wobj_wrd_ingangsdatum'], '%d-%m-%Y').replace(tzinfo=pytz.timezone('Europe/Amsterdam'))
             date.replace(year=date.year - 1)
             values[date] = decimal.Decimal(feature['properties']['wobj_wrd_woz_waarde'])
-        account = core.Account(
+        return [core.Account(
             str(self.id),
             None,
             core.Account.Type.PROPERTY,
             list(values.values())[0],
             'WOZ value',
             'https://www.wozwaardeloket.nl'
-        )
-        return account
+        )]

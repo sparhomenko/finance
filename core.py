@@ -3,71 +3,24 @@ import datetime
 import decimal
 import enum
 import re
-import typing
 
 import pytz
 
 BEGINNING = datetime.datetime(2021, 11, 1, tzinfo=pytz.timezone('Europe/Amsterdam'))
-candidates = []
+
+transactions = []
+matches = {}
 
 
 @dataclasses.dataclass
 class Account:
+    @enum.unique
     class Type(enum.Enum):
-        CURRENT = 0
-        CREDIT_CARD = 1
-        SAVINGS = 2
-        MORTGAGE = 3
-        PROPERTY = 4
-
-    @dataclasses.dataclass
-    class Transaction:
-        @dataclasses.dataclass
-        class Line:
-            class Category(enum.Enum):
-                CHILDREN = 0
-                GROCERIES = 1
-                FEE = 2
-                HEALTHCARE = 3
-                INTEREST = 4
-                INTEREST_INCOME = 5
-                TAKEAWAY = 6
-                UTILITIES = 7
-
-            RULES = {
-                r'De Elfentuin': Category.CHILDREN,
-                r'PARTOU BV': Category.CHILDREN,
-                r'Russian Gymnasium Amsterdam': Category.CHILDREN,
-                r'ALBERT HEIJN \d+': Category.GROCERIES,
-                r'Getir': Category.GROCERIES,
-                r'HELLOFRESH': Category.GROCERIES,
-                r'Coop Supermarkt \d+': Category.GROCERIES,
-                r'UBER\s+\*EATS.*': Category.TAKEAWAY,
-                r'CZ Groep Zorgverzekeraar': Category.HEALTHCARE,
-                r'Rente': Category.INTEREST_INCOME,
-                r'Vattenfall Klantenservice N.V.': Category.UTILITIES
-            }
-
-            amount: decimal.Decimal
-            category: Category = None
-            description: str = None
-
-        account: 'Account'
-        date: datetime.datetime
-        payee: str
-        description: str
-        cleared: bool = True
-        lines: list[Line] = dataclasses.field(default_factory=list)
-        number: int = None
-        counter_account_number = None
-        matcher: typing.Callable[[typing.Any], bool] = None
-        counter_account: 'Account' = None
-
-        def total(self):
-            return sum(map(lambda l: l.amount, self.lines))
-
-        def is_withdrawal(self):
-            return self.total() < 0
+        CURRENT = enum.auto()
+        CREDIT_CARD = enum.auto()
+        SAVINGS = enum.auto()
+        PROPERTY = enum.auto()
+        MORTGAGE = enum.auto()
 
     number: str
     name: str
@@ -79,45 +32,113 @@ class Account:
     description: str = None
     interest_rate: decimal.Decimal = None
     monthly_payment: decimal.Decimal = None
-    transactions: list[Transaction] = dataclasses.field(default_factory=list)
     group: str = None
 
-    def transaction(self, transaction):
-        if not transaction.date >= BEGINNING:
-            return False
-        self.initial_balance -= transaction.total()
-        if transaction.matcher is not None:
-            for candidate in candidates:
-                if transaction.matcher(transaction, candidate) and candidate.matcher(candidate, transaction):
-                    candidate.date = max(transaction.date, candidate.date)
-                    candidate.payee = None
-                    candidate.description = ' '.join(filter(None, [transaction.description, candidate.description]))
-                    candidate.counter_account = transaction.account
-                    candidates.remove(candidate)
-                    return True
-            candidates.append(transaction)
-        if transaction.lines[0].category is None:
-            for rule in Account.Transaction.Line.RULES.items():
-                if re.match(rule[0], transaction.payee):
-                    transaction.lines[0].category = rule[1]
-                    break
-        self.transactions.append(transaction)
-        return True
-
-    def finish_load(self):
-        matches = list(filter(lambda c: c.counter_account_number == self.number, candidates))
-        if matches:
-            if self.type == Account.Type.MORTGAGE:
-                matches.sort(key=lambda m: m.date, reverse=True)
-                monthly_interest_rate = self.interest_rate / 12
-                for match in matches:
-                    match.counter_account = self
+    def complete(self):
+        if self.type == Account.Type.MORTGAGE:
+            monthly_interest_rate = self.interest_rate / 12
+            for match in list(matches.values()):
+                matched_transaction, matched_line = match
+                if matched_line.counter_account_number == self.number:
                     repayment = ((-self.monthly_payment - self.initial_balance * monthly_interest_rate) / (monthly_interest_rate + 1) * 100).to_integral_value(decimal.ROUND_DOWN) / 100
-                    match.lines.append(Account.Transaction.Line(repayment, None, 'Repayment'))
-                    match.lines[0].amount -= repayment
-                    match.lines[0].category = Account.Transaction.Line.Category.INTEREST
-                    self.initial_balance += repayment
-            else:
-                print(f'Unmatched transactions for account {self.name}:')
-                for match in matches:
-                    print(f'{match.date} {match.payee} {match.total()}')
+                    interest = matched_line.amount - repayment
+                    Transaction(
+                        matched_transaction.date,
+                        matched_line.account.bank_name,
+                        None,
+                        [
+                            Transaction.Line(self, -matched_line.amount, counter_account_number=matched_line.account.number),
+                            Transaction.Line(self, interest, Transaction.Line.Category.INTEREST, 'Interest')
+                        ]
+                    ).complete()
+
+
+@dataclasses.dataclass
+class Transaction:
+    @dataclasses.dataclass
+    class Line:
+        @enum.unique
+        class Category(enum.Enum):
+            CHILDREN = enum.auto()
+            FEE = enum.auto()
+            GROCERIES = enum.auto()
+            HEALTHCARE = enum.auto()
+            INTEREST = enum.auto()
+            INTEREST_INCOME = enum.auto()
+            PENSION_CONTRIBUTION = enum.auto()
+            PERSONAL_CARE = enum.auto()
+            SALARY = enum.auto()
+            TAKEAWAY = enum.auto()
+            TAX = enum.auto()
+            UTILITIES = enum.auto()
+
+        RULES = {
+            r'ALBERT HEIJN \d+': Category.GROCERIES,
+            r'Basic Fit Nederland B.V.': Category.PERSONAL_CARE,
+            r'CLASSPASS.COM.*': Category.PERSONAL_CARE,
+            r'Coop Supermarkt \d+': Category.GROCERIES,
+            r'CZ Groep Zorgverzekeraar': Category.HEALTHCARE,
+            r'De Elfentuin': Category.CHILDREN,
+            r'Getir': Category.GROCERIES,
+            r'HELLOFRESH': Category.GROCERIES,
+            r'PARTOU BV': Category.CHILDREN,
+            r'Rente': Category.INTEREST_INCOME,
+            r'Russian Gymnasium Amsterdam': Category.CHILDREN,
+            r'UBER\s+\*EATS.*': Category.TAKEAWAY,
+            r'Vattenfall Klantenservice N.V.': Category.UTILITIES
+        }
+
+        account: Account
+        amount: decimal.Decimal
+        category: Category = None
+        description: str = None
+        counter_account_number: str = None
+        counter_account: Account = None
+        ext_account_number: str = None
+
+        def merge(self, other: 'Transaction'):
+            assert self.amount == -other.amount
+            assert self.counter_account_number == other.get_ext_account_number()
+            assert other.counter_account_number == self.get_ext_account_number()
+            self.counter_account = other.account
+            # TODO: should we merge descriptions?
+
+        def get_ext_account_number(self):
+            return self.ext_account_number or self.account.number
+
+    date: datetime.datetime
+    payee: str
+    description: str
+    lines: list[Line]
+    cleared: bool = True
+    number: int = None
+
+    def merge(self, other):
+        self.date = max(self.date, other.date)
+        self.lines += other.lines
+        if len(self.lines) == 1:
+            self.payee = None
+
+    def complete(self):
+        if not self.date >= BEGINNING:
+            return False
+        for line in list(self.lines):
+            line.account.initial_balance -= line.amount
+            if line.counter_account_number:
+                match_key = (line.counter_account_number, line.get_ext_account_number(), -line.amount)
+                match = matches.pop(match_key, None)
+                if match:
+                    matched_transaction, matched_line = match
+                    line.merge(matched_line)
+                    matched_transaction.lines.remove(matched_line)
+                    self.merge(matched_transaction)
+                    transactions.remove(matched_transaction)
+                else:
+                    matches[(line.get_ext_account_number(), line.counter_account_number, line.amount)] = (self, line)
+            if line.counter_account is None and line.category is None:
+                for rule in Transaction.Line.RULES.items():
+                    if re.match(rule[0], self.payee):
+                        line.category = rule[1]
+                        break
+        transactions.append(self)
+        return True

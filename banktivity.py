@@ -28,14 +28,18 @@ KEY_SIZE = 16
 
 class Document:
     CATEGORIES = {
-        core.Account.Transaction.Line.Category.CHILDREN:        'Child/Dependent Expenses',
-        core.Account.Transaction.Line.Category.GROCERIES:       'Groceries',
-        core.Account.Transaction.Line.Category.FEE:             'Service Charges/Fees',
-        core.Account.Transaction.Line.Category.HEALTHCARE:      'Medical/Healthcare',
-        core.Account.Transaction.Line.Category.INTEREST:        'Interest Paid',
-        core.Account.Transaction.Line.Category.INTEREST_INCOME: 'Interest Income',
-        core.Account.Transaction.Line.Category.TAKEAWAY:        'Dining/Restaurants',
-        core.Account.Transaction.Line.Category.UTILITIES:       'Utilities'
+        core.Transaction.Line.Category.CHILDREN:             'Child/Dependent Expenses',
+        core.Transaction.Line.Category.FEE:                  'Service Charges/Fees',
+        core.Transaction.Line.Category.GROCERIES:            'Groceries',
+        core.Transaction.Line.Category.HEALTHCARE:           'Medical/Healthcare',
+        core.Transaction.Line.Category.INTEREST_INCOME:      'Interest Income',
+        core.Transaction.Line.Category.INTEREST:             'Interest Paid',
+        core.Transaction.Line.Category.PENSION_CONTRIBUTION: 'Retirement Contributions',
+        core.Transaction.Line.Category.PERSONAL_CARE:        'Fitness/Personal Care',
+        core.Transaction.Line.Category.SALARY:               'Paychecks/Wages',
+        core.Transaction.Line.Category.TAKEAWAY:             'Dining/Restaurants',
+        core.Transaction.Line.Category.TAX:                  'Taxes',
+        core.Transaction.Line.Category.UTILITIES:            'Utilities'
     }
 
     @dataclasses.dataclass
@@ -49,6 +53,7 @@ class Document:
 
     @dataclasses.dataclass
     class Account(Entity):
+        @enum.unique
         class IGGCSyncAccountingAccountClass(enum.Enum):
             CURRENT = 'current'
             CREDIT_CARD = 'credit-card'
@@ -59,12 +64,14 @@ class Document:
             REVENUE = 'revenue'
             REAL_ESTATE = 'real-estate'
 
+        @enum.unique
         class IGGCSyncAccountingAccountType(enum.Enum):
             ASSET = 'asset'
             LIABILITY = 'liability'
             INCOME = 'income'
             EXPENSE = 'expense'
 
+        @enum.unique
         class IGGCSyncAccountingAccountSubtype(enum.Enum):
             ASSET = 'asset'
             CHECKING = 'checking'
@@ -129,6 +136,7 @@ class Document:
 
     @dataclasses.dataclass
     class TransactionType:
+        @enum.unique
         class IGGCSyncAccountingTransactionBaseType(enum.Enum):
             DEPOSIT = 'deposit'
             WITHDRAWAL = 'withdrawal'
@@ -381,7 +389,7 @@ class Document:
             bankAccountNumber=a.number,
             bankRoutingNumber=a.routing_number,
             institutionName=a.bank_name,
-            institutionSite=urllib.parse.urlparse(a.bank_site),
+            institutionSite=urllib.parse.urlparse(a.bank_site) if a.bank_site else None,
             accountClass=typ[0],
             type=typ[1],
             subtype=typ[2]
@@ -409,37 +417,46 @@ class Document:
             self.updated.append(group)
         group.orderedItems.append(Document.GroupItem(account.id))
 
-        self.create_transaction(core.Account.Transaction(
-            account,
+        self.create_transaction(core.Transaction(
             core.BEGINNING - datetime.timedelta(days=1),
             'STARTING BALANCE',
             'BALANCE ADJUSTMENT',
-            True,
-            lines=[core.Account.Transaction.Line(a.initial_balance)]),
-            adjustment=True
-        )
+            [core.Transaction.Line(account, a.initial_balance)],
+        ))
         return account
 
     def create_transaction(self, t, adjustment=False):
-        account = self.accounts[t.account.name]
-        counter_account = None if t.counter_account is None else self.accounts[t.counter_account.name]
-        if counter_account:
+        lines = []
+        account_lines = {}
+
+        def account_line(a, amount, cleared, memo):
+            line = account_lines.get(a, None)
+            if line:
+                line.accountAmount += amount
+                line.transacitonAmount += amount
+                line.memo = memo
+            else:
+                line = Document.LineItem(self.accounts[a], amount, amount, cleared=cleared, memo=memo)
+                account_lines[a] = line
+                lines.append(line)
+
+        transfer = False
+        sum = 0
+        for line in t.lines:
+            account_line(line.account.name, line.amount, t.cleared, line.description)
+            if line.counter_account:
+                account_line(line.counter_account.name, -line.amount, t.cleared, line.description)
+                transfer = True
+            else:
+                sum += line.amount
+                account = self.accounts[Document.CATEGORIES[line.category]] if line.category else None
+                lines.append(Document.LineItem(account, -line.amount, -line.amount, cleared=t.cleared, memo=line.description))
+        if transfer:
             transaction_type = self.transaction_type_transfer
-        elif t.is_withdrawal():
+        elif sum < 0:
             transaction_type = self.transaction_type_withdrawal
         else:
             transaction_type = self.transaction_type_deposit
-        lines = [Document.LineItem(account=account, accountAmount=t.total(), transacitonAmount=t.total(), cleared=t.cleared)]
-        for line in t.lines:
-            lines.append(Document.LineItem(
-                account=None if line.category is None else self.accounts[Document.CATEGORIES[line.category]],
-                accountAmount=-line.amount,
-                transacitonAmount=-line.amount,
-                cleared=t.cleared,
-                memo=line.description
-            ))
-        if counter_account is not None:
-            lines[-1].account = counter_account
         transaction = Document.Transaction(
             currency=self.default_currency,
             date=t.date,

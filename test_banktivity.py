@@ -44,16 +44,16 @@ def test_account():
 
 
 def test_transaction():
-    transaction = core.Account.Transaction(
+    transaction = core.Transaction(
         core.Account(None, 'Checking', None, None, None, None),
+        decimal.Decimal(-21),
         datetime(2021, 9, 13, tzinfo=pytz.timezone('Europe/Amsterdam')),
         'Test Payee',
         'Test Description',
         False,
-        [core.Account.Transaction.Line(decimal.Decimal(-21), None, 'Test Description 1'), core.Account.Transaction.Line(decimal.Decimal(-21), None, 'Test Description 2')],
         4242,
         None,
-        core.Account(None, 'Destination', None, None, None, None),
+        core.Account(None, 'Destination', None, None, None, None)
     )
 
     id = DOC.create_transaction(transaction).id
