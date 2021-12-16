@@ -1,37 +1,37 @@
-import dataclasses
-import datetime
-import decimal
-import enum
 import re
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import ROUND_DOWN, Decimal
+from enum import Enum, auto, unique
 
-import pytz
+from pytz import timezone
 
-BEGINNING = datetime.datetime(2021, 11, 1, tzinfo=pytz.timezone('Europe/Amsterdam'))
+BEGINNING = datetime(2021, 11, 1, tzinfo=timezone("Europe/Amsterdam"))
 
 transactions = []
 matches = {}
 
 
-@dataclasses.dataclass
+@dataclass
 class Account:
-    @enum.unique
-    class Type(enum.Enum):
-        CURRENT = enum.auto()
-        CREDIT_CARD = enum.auto()
-        SAVINGS = enum.auto()
-        PROPERTY = enum.auto()
-        MORTGAGE = enum.auto()
+    @unique
+    class Type(Enum):
+        CURRENT = auto()
+        CREDIT_CARD = auto()
+        SAVINGS = auto()
+        PROPERTY = auto()
+        MORTGAGE = auto()
 
     number: str
     name: str
     type: Type
-    initial_balance: decimal.Decimal
+    initial_balance: Decimal
     bank_name: str
     bank_site: str
     routing_number: str = None
     description: str = None
-    interest_rate: decimal.Decimal = None
-    monthly_payment: decimal.Decimal = None
+    interest_rate: Decimal = None
+    monthly_payment: Decimal = None
     group: str = None
 
     def complete(self):
@@ -40,7 +40,7 @@ class Account:
             for match in list(matches.values()):
                 matched_transaction, matched_line = match
                 if matched_line.counter_account_number == self.number:
-                    repayment = ((-self.monthly_payment - self.initial_balance * monthly_interest_rate) / (monthly_interest_rate + 1) * 100).to_integral_value(decimal.ROUND_DOWN) / 100
+                    repayment = ((-self.monthly_payment - self.initial_balance * monthly_interest_rate) / (monthly_interest_rate + 1) * 100).to_integral_value(ROUND_DOWN) / 100
                     interest = matched_line.amount - repayment
                     Transaction(
                         matched_transaction.date,
@@ -48,55 +48,55 @@ class Account:
                         None,
                         [
                             Transaction.Line(self, -matched_line.amount, counter_account_number=matched_line.account.number),
-                            Transaction.Line(self, interest, Transaction.Line.Category.INTEREST, 'Interest')
-                        ]
+                            Transaction.Line(self, interest, Transaction.Line.Category.INTEREST, "Interest"),
+                        ],
                     ).complete()
 
 
-@dataclasses.dataclass
+@dataclass
 class Transaction:
-    @dataclasses.dataclass
+    @dataclass
     class Line:
-        @enum.unique
-        class Category(enum.Enum):
-            CHILDREN = enum.auto()
-            FEE = enum.auto()
-            GROCERIES = enum.auto()
-            HEALTHCARE = enum.auto()
-            INTEREST = enum.auto()
-            INTEREST_INCOME = enum.auto()
-            PENSION_CONTRIBUTION = enum.auto()
-            PERSONAL_CARE = enum.auto()
-            SALARY = enum.auto()
-            TAKEAWAY = enum.auto()
-            TAX = enum.auto()
-            UTILITIES = enum.auto()
+        @unique
+        class Category(Enum):
+            CHILDREN = auto()
+            FEE = auto()
+            GROCERIES = auto()
+            HEALTHCARE = auto()
+            INTEREST = auto()
+            INTEREST_INCOME = auto()
+            PENSION_CONTRIBUTION = auto()
+            PERSONAL_CARE = auto()
+            SALARY = auto()
+            TAKEAWAY = auto()
+            TAX = auto()
+            UTILITIES = auto()
 
         RULES = {
-            r'ALBERT HEIJN \d+': Category.GROCERIES,
-            r'Basic Fit Nederland B.V.': Category.PERSONAL_CARE,
-            r'CLASSPASS.COM.*': Category.PERSONAL_CARE,
-            r'Coop Supermarkt \d+': Category.GROCERIES,
-            r'CZ Groep Zorgverzekeraar': Category.HEALTHCARE,
-            r'De Elfentuin': Category.CHILDREN,
-            r'Getir': Category.GROCERIES,
-            r'HELLOFRESH': Category.GROCERIES,
-            r'PARTOU BV': Category.CHILDREN,
-            r'Rente': Category.INTEREST_INCOME,
-            r'Russian Gymnasium Amsterdam': Category.CHILDREN,
-            r'UBER\s+\*EATS.*': Category.TAKEAWAY,
-            r'Vattenfall Klantenservice N.V.': Category.UTILITIES
+            r"ALBERT HEIJN \d+": Category.GROCERIES,
+            "Basic Fit Nederland B.V.": Category.PERSONAL_CARE,
+            "CLASSPASS.COM.*": Category.PERSONAL_CARE,
+            r"Coop Supermarkt \d+": Category.GROCERIES,
+            "CZ Groep Zorgverzekeraar": Category.HEALTHCARE,
+            "De Elfentuin": Category.CHILDREN,
+            "Getir": Category.GROCERIES,
+            "HELLOFRESH": Category.GROCERIES,
+            "PARTOU BV": Category.CHILDREN,
+            "Rente": Category.INTEREST_INCOME,
+            "Russian Gymnasium Amsterdam": Category.CHILDREN,
+            r"UBER\s+\*EATS.*": Category.TAKEAWAY,
+            "Vattenfall Klantenservice N.V.": Category.UTILITIES,
         }
 
         account: Account
-        amount: decimal.Decimal
+        amount: Decimal
         category: Category = None
         description: str = None
         counter_account_number: str = None
         counter_account: Account = None
         ext_account_number: str = None
 
-        def merge(self, other: 'Transaction'):
+        def merge(self, other: "Transaction"):
             assert self.amount == -other.amount
             assert self.counter_account_number == other.get_ext_account_number()
             assert other.counter_account_number == self.get_ext_account_number()
@@ -106,7 +106,7 @@ class Transaction:
         def get_ext_account_number(self):
             return self.ext_account_number or self.account.number
 
-    date: datetime.datetime
+    date: datetime
     payee: str
     description: str
     lines: list[Line]
@@ -120,7 +120,7 @@ class Transaction:
             self.payee = None
 
     def complete(self):
-        if not self.date >= BEGINNING:
+        if self.date < BEGINNING:
             return False
         for line in list(self.lines):
             line.account.initial_balance -= line.amount

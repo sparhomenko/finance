@@ -1,2 +1,40 @@
 [flake8]
 max-line-length = 200
+ignore =
+  E203, W503,  # https://black.readthedocs.io/en/stable/faq.html#why-are-flake8-s-e203-and-w503-violated
+  WPS115,  # https://github.com/wemake-services/wemake-python-styleguide/issues/750
+  WPS305,
+  WPS306,
+  WPS414,
+
+  D,
+  S101,
+  S105,
+  WPS110,
+  WPS201,
+  WPS204,
+  WPS210,
+  WPS211,
+  WPS213,
+  WPS214,
+  WPS218,
+  WPS220,
+  WPS221,
+  WPS223,
+  WPS226,
+  WPS230,
+  WPS231,
+  WPS232,
+  WPS237,
+  WPS317,
+  WPS336,
+  WPS426,
+  WPS430,
+  WPS431,
+  WPS432,
+  WPS440,
+  WPS460,
+  WPS508,
+  WPS601,
+  WPS615,
+inline-quotes = double

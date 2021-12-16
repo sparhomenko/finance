@@ -1,106 +1,105 @@
-import decimal
-import urllib.parse
 from datetime import datetime
+from decimal import Decimal
+from urllib.parse import urlunparse
 
-import pytest
-import pytz
+from pytest import raises
+from pytz import timezone
 
-import core
 from banktivity import Document
+from core import Account, Transaction
 
-DOC = 'Test'
-PASSWORD = 'ZkzbFhr*!z9DWmuD2JXLadgr'
+DOC = "Test"
+PASSWORD = "ZkzbFhr*!z9DWmuD2JXLadgr"
 DOC = Document(DOC, PASSWORD)
 DOC.load()
 
 
 def test_account():
-    account = core.Account('Test Number', 'Test', core.Account.Type.CURRENT, decimal.Decimal(42), 'Test Bank', 'https://test.com', 'Test BIC', 'Test Description')
+    data = Account("Test Number", "Test", Account.Type.CURRENT, Decimal(42), "Test Bank", "https://test.com", "Test BIC", "Test Description")
 
-    DOC.create_account(account)
+    DOC.create_account(data)
     DOC.save()
     DOC.load()
 
-    a = DOC.accounts[account.name]
-    assert a.name == account.name
-    assert a.note == account.description
-    assert a.currency.code == 'EUR'
-    assert a.accountClass == Document.Account.IGGCSyncAccountingAccountClass.CURRENT
-    assert a.type == Document.Account.IGGCSyncAccountingAccountType.ASSET
-    assert a.subtype == Document.Account.IGGCSyncAccountingAccountSubtype.CHECKING
-    assert a.bankAccountNumber == account.number
-    assert a.bankRoutingNumber == account.routing_number
-    assert a.institutionName == account.bank_name
-    assert urllib.parse.urlunparse(a.institutionSite) == account.bank_site
-    t = next(filter(lambda t: t[0][0] == 'Transaction' and t[1].lineItems[0].account == a, DOC.entities.items()))[1]
-    assert t.currency.code == 'EUR'
-    assert t.transactionType.baseType == Document.TransactionType.IGGCSyncAccountingTransactionBaseType.DEPOSIT
-    assert t.title == 'STARTING BALANCE'
-    assert t.note == 'BALANCE ADJUSTMENT'
-    assert t.lineItems[0].accountAmount == t.lineItems[0].transacitonAmount == account.initial_balance
-    assert t.lineItems[0].cleared
-    assert t.lineItems[1].accountAmount == t.lineItems[1].transacitonAmount == -account.initial_balance
-    assert t.adjustment
+    result = DOC.accounts[data.name]
+    assert result.name == data.name
+    assert result.note == data.description
+    assert result.currency.code == "EUR"
+    assert result.accountClass == Document.Account.IGGCSyncAccountingAccountClass.CURRENT
+    assert result.type == Document.Account.IGGCSyncAccountingAccountType.ASSET
+    assert result.subtype == Document.Account.IGGCSyncAccountingAccountSubtype.CHECKING
+    assert result.bankAccountNumber == data.number
+    assert result.bankRoutingNumber == data.routing_number
+    assert result.institutionName == data.bank_name
+    assert urlunparse(result.institutionSite) == data.bank_site
+    transaction = next(filter(lambda transaction: transaction[0][0] == "Transaction" and transaction[1].lineItems[0].account == result, DOC.entities.items()))[1]
+    assert transaction.currency.code == "EUR"
+    assert transaction.transactionType.baseType == Document.TransactionType.IGGCSyncAccountingTransactionBaseType.DEPOSIT
+    assert transaction.title == "STARTING BALANCE"
+    assert transaction.note == "BALANCE ADJUSTMENT"
+    assert transaction.lineItems[0].accountAmount == transaction.lineItems[0].transacitonAmount == data.initial_balance
+    assert transaction.lineItems[0].cleared
+    assert transaction.lineItems[1].accountAmount == transaction.lineItems[1].transacitonAmount == -data.initial_balance
+    assert transaction.adjustment
 
 
 def test_transaction():
-    transaction = core.Transaction(
-        core.Account(None, 'Checking', None, None, None, None),
-        decimal.Decimal(-21),
-        datetime(2021, 9, 13, tzinfo=pytz.timezone('Europe/Amsterdam')),
-        'Test Payee',
-        'Test Description',
-        False,
-        4242,
-        None,
-        core.Account(None, 'Destination', None, None, None, None)
+    data = Transaction(
+        Account(None, "Checking", None, None, None, None),
+        Decimal(-21),
+        datetime(2021, 9, 13, tzinfo=timezone("Europe/Amsterdam")),
+        "Test Payee",
+        "Test Description",
+        cleared=False,
+        number=4242,
     )
 
-    id = DOC.create_transaction(transaction).id
+    transaction_id = DOC.create_transaction(data).id
     DOC.save()
     DOC.load()
 
-    t = DOC.entities[('Transaction', id)]
-    assert t.currency.code == 'EUR'
-    assert t.date == transaction.date
-    assert t.transactionType.baseType == Document.TransactionType.IGGCSyncAccountingTransactionBaseType.TRANSFER
-    assert t.title == transaction.payee
-    assert t.note == transaction.description
-    assert t.lineItems[0].account.name == transaction.account.name
-    assert t.lineItems[0].accountAmount == t.lineItems[0].transacitonAmount == transaction.total()
-    assert not t.lineItems[0].cleared
-    assert t.lineItems[1].accountAmount == t.lineItems[1].transacitonAmount == -transaction.lines[0].amount
-    assert t.lineItems[1].memo == transaction.lines[0].description
-    assert not t.lineItems[1].cleared
-    assert t.lineItems[2].accountAmount == t.lineItems[2].transacitonAmount == -transaction.lines[1].amount
-    assert t.lineItems[2].memo == transaction.lines[1].description
-    assert not t.lineItems[2].cleared
-    assert t.lineItems[2].account.name == transaction.counter_account.name
-    assert not t.adjustment
+    transaction = DOC.entities[("Transaction", transaction_id)]
+    assert transaction.currency.code == "EUR"
+    assert transaction.date == data.date
+    assert transaction.transactionType.baseType == Document.TransactionType.IGGCSyncAccountingTransactionBaseType.TRANSFER
+    assert transaction.title == data.payee
+    assert transaction.note == data.description
+    assert transaction.lineItems[0].account.name == data.account.name
+    assert transaction.lineItems[0].accountAmount == transaction.lineItems[0].transacitonAmount == data.total()
+    assert not transaction.lineItems[0].cleared
+    assert transaction.lineItems[1].accountAmount == transaction.lineItems[1].transacitonAmount == -data.lines[0].amount
+    assert transaction.lineItems[1].memo == data.lines[0].description
+    assert not transaction.lineItems[1].cleared
+    assert transaction.lineItems[2].accountAmount == transaction.lineItems[2].transacitonAmount == -data.lines[1].amount
+    assert transaction.lineItems[2].memo == data.lines[1].description
+    assert not transaction.lineItems[2].cleared
+    assert transaction.lineItems[2].account.name == data.counter_account.name
+    assert not transaction.adjustment
 
 
 def test_invalid_credentials():
-    with pytest.raises(ValueError):
-        Document(DOC, PASSWORD, ('invalid', 'invalid'))
+    with raises(ValueError):
+        Document(DOC, PASSWORD, ("invalid", "invalid"))
 
 
 def test_invalid_doc():
-    with pytest.raises(ValueError):
-        Document('invalid', PASSWORD)
+    with raises(ValueError):
+        Document("invalid", PASSWORD)
 
 
 def test_invalid_password():
-    with pytest.raises(ValueError):
-        Document(DOC, 'invalid')
+    with raises(ValueError):
+        Document(DOC, "invalid")
 
 
 def test_parse_object_invalid_type():
-    with pytest.raises(TypeError):
-        DOC.parse_object({'@type': 'Account', 'field': {'@type': 'invalid'}})
+    with raises(TypeError):
+        DOC.parse_object({"@type": "Account", "field": {"@type": "invalid"}})
 
 
 def test_unparse_object_invalid_type():
     class Invalid:
         field = {}
-    with pytest.raises(TypeError):
+
+    with raises(TypeError):
         DOC.unparse_object(Invalid)

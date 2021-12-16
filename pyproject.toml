@@ -6,22 +6,34 @@ authors = ["Sergey Parhomenko <sergey@parhomenko.net>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "3.10.0" # renovate github-tags:python/cpython:^v(?<version>.*)$
-requests = "^2.26.0"
-xmltodict = "^0.12.0"
-pycryptodome = "^3.11.0"
-dacite = "^1.6.0"
-cryptography = "^36.0.0"
-pytz = "^2021.3"
-bpylist2 = "^4.0.1"
+python = "3.10.1" # renovate github-tags:python/cpython:^v(?<version>.*)$
 beautifulsoup4 = "^4.10.0"
+bpylist2 = "^4.0.1"
+cryptography = "^36.0.0"
+dacite = "^1.6.0"
+inflection = "^0.5.1"
+pycryptodomex = "^3.12.0"
+pytz = "^2021.3"
+requests = "^2.26.0"
+srp = "^1.0.18"
+xmltodict = "^0.12.0"
 
 [tool.poetry.dev-dependencies]
-flake8 = "^4.0.1"
-pytest = "^6.2.5"
-coverage = "^6.1.2"
 autopep8 = "^1.6.0"
+black = {version = "^21.12b0", allow-prereleases = true}
+coverage = "^6.1.2"
+flake8 = "^4.0.1"
+flake8-black = "^0.2.3"
+pytest = "^6.2.5"
+wemake-python-styleguide = "^0.16.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+build-backend = "poetry.masonry.api"
+
+[tool.black]
+line-length = 200
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
