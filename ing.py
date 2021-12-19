@@ -210,6 +210,7 @@ class Profile:
                     self.beautify_hypotheken(data, transaction)
                     self.beautify_abnamro_tikkie(data, transaction)
                     self.beautify_savings_transfer(data, transaction)
+                    self.beautify_sns_betaalverzoek(data, transaction)
                     if not transaction.complete():
                         more = False
         return accounts
@@ -285,4 +286,4 @@ class Profile:
 
     def beautify_sns_betaalverzoek(self, data, transaction):
         if transaction.payee == "SNS Betaalverzoek":
-            transaction.payee, transaction.description = re.match(r"(.+) \d+ [A-Z]{2}\d{2}[A-Z]{4}\d{10} .+", transaction.description).groups()
+            transaction.payee, transaction.description = re.match(r"(.+) \d+ [A-Z]{2}\d{2}[A-Z]{4}\d{10} (.+)", transaction.description).groups()

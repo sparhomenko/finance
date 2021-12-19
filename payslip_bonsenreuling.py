@@ -8,7 +8,7 @@ from requests import Session
 from core import Account, Transaction
 
 
-class PayslipLoader:
+class Loader:
     def __init__(self, email, password, name, number):
         self.name = name
         self.number = number
@@ -66,11 +66,11 @@ class PayslipLoader:
         reservation = self.parse_rows(html.find(class_="tblPayslipResContent"))
 
         iban = html.find(style="background-color:#ccc;").text.removeprefix("Account number IBAN: ")
-        gross = self.to_decimal(content["Gross Salary"]["Payment"])
-        pension = self.to_decimal(content["Deduction Pension premium"]["Retention"])
-        tax = self.to_decimal(content["Wage tax Table"]["Retention"])
-        net = self.to_decimal(content["Net payment"]["Payment"])
-        assert net == gross - pension - tax
+        salary = self.to_decimal(content["Gross Salary"]["Payment"])
+        pension = -self.to_decimal(content["Deduction Pension premium"]["Retention"])
+        tax = -self.to_decimal(content["Wage tax Table"]["Retention"])
+        payment = self.to_decimal(content["Net payment"]["Payment"])
+        assert payment == salary + pension + tax
 
         holiday = self.to_decimal(reservation["Holiday pay"]["Res"])
         holiday_balance = self.to_decimal(reservation["Holiday pay"]["Balance"])
@@ -78,14 +78,14 @@ class PayslipLoader:
         account = Account(self.number, self.name, Account.Type.CURRENT, holiday_balance, self.name, None)
         Transaction(
             datetime(year, month, 25, tzinfo=timezone("Europe/Amsterdam")),
-            "EVBox",
-            f"Salary period {period}",
+            self.name,
+            f"Payslip {period}",
             [
-                Transaction.Line(account, gross, Transaction.Line.Category.SALARY, "Gross salary"),
-                Transaction.Line(account, -pension, Transaction.Line.Category.PENSION_CONTRIBUTION, "Pension premium"),
-                Transaction.Line(account, -tax, Transaction.Line.Category.TAX, "Wage tax"),
-                Transaction.Line(account, -net, None, "Net salary", iban),
+                Transaction.Line(account, salary, Transaction.Line.Category.SALARY, "Salary"),
                 Transaction.Line(account, holiday, Transaction.Line.Category.SALARY, "Holiday pay"),
+                Transaction.Line(account, pension, Transaction.Line.Category.PENSION_CONTRIBUTION, "Pension premium"),
+                Transaction.Line(account, tax, Transaction.Line.Category.TAX, "Wage tax"),
+                Transaction.Line(account, -payment, None, "Salary payment", iban),
             ],
         ).complete()
         return [account]

@@ -34,6 +34,7 @@ class Document:
         Transaction.Line.Category.HEALTHCARE: "Medical/Healthcare",
         Transaction.Line.Category.INTEREST_INCOME: "Interest Income",
         Transaction.Line.Category.INTEREST: "Interest Paid",
+        Transaction.Line.Category.INSURANCE: "Insurance",
         Transaction.Line.Category.PENSION_CONTRIBUTION: "Retirement Contributions",
         Transaction.Line.Category.PERSONAL_CARE: "Fitness/Personal Care",
         Transaction.Line.Category.SALARY: "Paychecks/Wages",

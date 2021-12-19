@@ -65,6 +65,7 @@ class Transaction:
             HEALTHCARE = auto()
             INTEREST = auto()
             INTEREST_INCOME = auto()
+            INSURANCE = auto()
             PENSION_CONTRIBUTION = auto()
             PERSONAL_CARE = auto()
             SALARY = auto()
