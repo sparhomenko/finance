@@ -1,8 +1,9 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-from decimal import ROUND_DOWN, Decimal
+from decimal import Decimal
 from enum import Enum, auto, unique
+from typing import Callable
 
 from pytz import timezone
 
@@ -19,6 +20,7 @@ class Account:
         CURRENT = auto()
         CREDIT_CARD = auto()
         SAVINGS = auto()
+        LIABILITY = auto()
         PROPERTY = auto()
         MORTGAGE = auto()
 
@@ -33,24 +35,16 @@ class Account:
     interest_rate: Decimal = None
     monthly_payment: Decimal = None
     group: str = None
+    matcher: Callable[["Account", "Transaction", "Transaction.Line"], "Transaction"] = None
+    tax_base: Decimal = field(default_factory=lambda: Decimal(0))
 
     def complete(self):
-        if self.type == Account.Type.MORTGAGE:
-            monthly_interest_rate = self.interest_rate / 12
+        if self.matcher:
             for match in list(matches.values()):
                 matched_transaction, matched_line = match
                 if matched_line.counter_account_number == self.number:
-                    repayment = ((-self.monthly_payment - self.initial_balance * monthly_interest_rate) / (monthly_interest_rate + 1) * 100).to_integral_value(ROUND_DOWN) / 100
-                    interest = matched_line.amount - repayment
-                    Transaction(
-                        matched_transaction.date,
-                        matched_line.account.bank_name,
-                        None,
-                        [
-                            Transaction.Line(self, -matched_line.amount, counter_account_number=matched_line.account.number),
-                            Transaction.Line(self, interest, Transaction.Line.Category.INTEREST, "Interest"),
-                        ],
-                    ).complete()
+                    if transaction := self.matcher(self, matched_transaction, matched_line):
+                        transaction.complete()
 
 
 @dataclass
@@ -126,7 +120,7 @@ class Transaction:
         for line in list(self.lines):
             line.account.initial_balance -= line.amount
             if line.counter_account_number:
-                match_key = (line.counter_account_number, line.get_ext_account_number(), -line.amount)
+                match_key = (line.counter_account_number, line.get_ext_account_number(), -line.amount, self.date.year, self.date.month)
                 match = matches.pop(match_key, None)
                 if match:
                     matched_transaction, matched_line = match
@@ -135,7 +129,7 @@ class Transaction:
                     self.merge(matched_transaction)
                     transactions.remove(matched_transaction)
                 else:
-                    matches[(line.get_ext_account_number(), line.counter_account_number, line.amount)] = (self, line)
+                    matches[(line.get_ext_account_number(), line.counter_account_number, line.amount, self.date.year, self.date.month)] = (self, line)
             if line.counter_account is None and line.category is None:
                 for rule in Transaction.Line.RULES.items():
                     if re.match(rule[0], self.payee):

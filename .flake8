@@ -5,6 +5,7 @@ ignore =
   WPS115,  # https://github.com/wemake-services/wemake-python-styleguide/issues/750
   WPS305,
   WPS306,
+  WPS332,  # WalrusViolation - won't ignore new language feature because of styleguide's opinion of its readability
   WPS414,
 
   D,

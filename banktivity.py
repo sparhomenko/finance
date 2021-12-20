@@ -64,6 +64,7 @@ class Document:
             EXPENSE = "expense"
             REVENUE = "revenue"
             REAL_ESTATE = "real-estate"
+            LIABILITY = "liability"
 
         @unique
         class IGGCSyncAccountingAccountType(Enum):
@@ -78,12 +79,14 @@ class Document:
             CHECKING = "checking"
             CREDIT_CARD = "credit-card"
             SAVINGS = "savings"
+            LIABILITY = "liability"
             MORTGAGE = "mortgage"
 
         TYPES = {
             Account.Type.CURRENT: (IGGCSyncAccountingAccountClass.CURRENT, IGGCSyncAccountingAccountType.ASSET, IGGCSyncAccountingAccountSubtype.CHECKING),
             Account.Type.SAVINGS: (IGGCSyncAccountingAccountClass.SAVINGS, IGGCSyncAccountingAccountType.ASSET, IGGCSyncAccountingAccountSubtype.SAVINGS),
             Account.Type.CREDIT_CARD: (IGGCSyncAccountingAccountClass.CREDIT_CARD, IGGCSyncAccountingAccountType.LIABILITY, IGGCSyncAccountingAccountSubtype.CREDIT_CARD),
+            Account.Type.LIABILITY: (IGGCSyncAccountingAccountClass.LIABILITY, IGGCSyncAccountingAccountType.LIABILITY, IGGCSyncAccountingAccountSubtype.LIABILITY),
             Account.Type.MORTGAGE: (IGGCSyncAccountingAccountClass.MORTGAGE, IGGCSyncAccountingAccountType.LIABILITY, IGGCSyncAccountingAccountSubtype.MORTGAGE),
             Account.Type.PROPERTY: (IGGCSyncAccountingAccountClass.REAL_ESTATE, IGGCSyncAccountingAccountType.ASSET, IGGCSyncAccountingAccountSubtype.ASSET),
         }

@@ -3,7 +3,7 @@ import json
 import re
 from base64 import b64decode, b64encode
 from datetime import datetime
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 from hashlib import sha256, sha512
 from itertools import chain
 from secrets import token_bytes
@@ -182,6 +182,7 @@ class Profile:
                 original_value = original_amount / loan_to_value
                 account.description = f"Loan to value: {loan_to_value * 100:.3f}% of {original_value:.2f}"
                 account.monthly_payment = sum(map(lambda part: Decimal(part["recentPayment"]["amount"]["value"]), parts))
+                account.matcher = match_mortgage_payment
             accounts.append(account)
 
             more = True
@@ -287,3 +288,18 @@ class Profile:
     def beautify_sns_betaalverzoek(self, data, transaction):
         if transaction.payee == "SNS Betaalverzoek":
             transaction.payee, transaction.description = re.match(r"(.+) \d+ [A-Z]{2}\d{2}[A-Z]{4}\d{10} (.+)", transaction.description).groups()
+
+
+def match_mortgage_payment(account, transaction, line):
+    monthly_interest_rate = account.interest_rate / 12
+    repayment = ((-account.monthly_payment - account.initial_balance * monthly_interest_rate) / (monthly_interest_rate + 1) * 100).to_integral_value(ROUND_DOWN) / 100
+    interest = line.amount - repayment
+    return Transaction(
+        transaction.date,
+        account.bank_name,
+        None,
+        [
+            Transaction.Line(account, -line.amount, counter_account_number=line.account.number),
+            Transaction.Line(account, interest, Transaction.Line.Category.INTEREST, "Interest"),
+        ],
+    )

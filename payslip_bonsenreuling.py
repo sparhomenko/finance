@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from pytz import timezone
 from requests import Session
 
-from core import Account, Transaction
+from core import BEGINNING, Account, Transaction
 
 
 class Loader:
@@ -24,7 +24,8 @@ class Loader:
         )
         assert "formsauth" in self.session.cookies
 
-    def parse_headers(self, cells):
+    def parse_headers(self, table):
+        cells = filter(lambda cell: cell.text.strip(), table.find_all(("th", "td")))
         result = {}
         cells = list(cells)
         for index in range(0, len(cells), 2):
@@ -46,8 +47,8 @@ class Loader:
                     row = {}
                     for index, header in enumerate(headers[1:], 1):
                         text = tds[index].text
-                        if text != "":
-                            row[header] = text
+                        if text:
+                            row[header] = self.to_decimal(text)
                     result[title] = row
         return result
 
@@ -64,18 +65,29 @@ class Loader:
         html = BeautifulSoup(response.json()["content"], "html.parser")
         content = self.parse_rows(html.find_all(class_="tblPayslipContent")[1])
         reservation = self.parse_rows(html.find(class_="tblPayslipResContent"))
+        cumulative = self.parse_headers(html.find(class_="tblPayslipCumContent"))
 
         iban = html.find(style="background-color:#ccc;").text.removeprefix("Account number IBAN: ")
-        salary = self.to_decimal(content["Gross Salary"]["Payment"])
-        pension = -self.to_decimal(content["Deduction Pension premium"]["Retention"])
-        tax = -self.to_decimal(content["Wage tax Table"]["Retention"])
-        payment = self.to_decimal(content["Net payment"]["Payment"])
+
+        salary = content["Gross Salary"]["Payment"]
+        salary_past = content["Gross Salary"]["Cumulative"] - salary
+
+        pension = -content["Deduction Pension premium"]["Retention"]
+        pension_past = content["Deduction Pension premium"]["Cumulative"] - pension
+
+        payment = content["Net payment"]["Payment"]
+
+        holiday = reservation["Holiday pay"]["Res"]
+        holiday_total = reservation["Holiday pay"]["Balance"]
+
+        tax = -content["Wage tax Table"]["Retention"]
+        tax_past = -self.to_decimal(cumulative["Tax"]) - tax
+
+        other_past = self.to_decimal(cumulative["Fiscal wage"]) - salary_past - pension_past
+
         assert payment == salary + pension + tax
 
-        holiday = self.to_decimal(reservation["Holiday pay"]["Res"])
-        holiday_balance = self.to_decimal(reservation["Holiday pay"]["Balance"])
-
-        account = Account(self.number, self.name, Account.Type.CURRENT, holiday_balance, self.name, None)
+        account = Account(self.number, self.name, Account.Type.LIABILITY, holiday_total, self.name, None)
         Transaction(
             datetime(year, month, 25, tzinfo=timezone("Europe/Amsterdam")),
             self.name,
@@ -84,8 +96,20 @@ class Loader:
                 Transaction.Line(account, salary, Transaction.Line.Category.SALARY, "Salary"),
                 Transaction.Line(account, holiday, Transaction.Line.Category.SALARY, "Holiday pay"),
                 Transaction.Line(account, pension, Transaction.Line.Category.PENSION_CONTRIBUTION, "Pension premium"),
-                Transaction.Line(account, tax, Transaction.Line.Category.TAX, "Wage tax"),
+                Transaction.Line(account, tax, Transaction.Line.Category.TAX, "Wage tax", "NL36INGB0003445588"),
                 Transaction.Line(account, -payment, None, "Salary payment", iban),
             ],
         ).complete()
+        Transaction(
+            BEGINNING,
+            self.name,
+            f"Past payslips in {year}",
+            [
+                Transaction.Line(account, salary_past, Transaction.Line.Category.SALARY, "Salary"),
+                Transaction.Line(account, other_past, Transaction.Line.Category.SALARY, "Unspecified income"),
+                Transaction.Line(account, pension_past, Transaction.Line.Category.PENSION_CONTRIBUTION, "Pension premium"),
+                Transaction.Line(account, tax_past, Transaction.Line.Category.TAX, "Wage tax", "NL36INGB0003445588"),
+            ],
+        ).complete()
+
         return [account]
