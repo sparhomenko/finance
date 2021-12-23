@@ -1,11 +1,11 @@
 from datetime import datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup
-from pytz import timezone
 from requests import Session
 
-from core import BEGINNING, Account, Transaction
+from core import BEGINNING, Account, Category, Transaction
 
 
 class Loader:
@@ -89,14 +89,14 @@ class Loader:
 
         account = Account(self.number, self.name, Account.Type.LIABILITY, holiday_total, self.name, None)
         Transaction(
-            datetime(year, month, 25, tzinfo=timezone("Europe/Amsterdam")),
+            datetime(year, month, 25, tzinfo=ZoneInfo("Europe/Amsterdam")),
             self.name,
             f"Payslip {period}",
             [
-                Transaction.Line(account, salary, Transaction.Line.Category.SALARY, "Salary"),
-                Transaction.Line(account, holiday, Transaction.Line.Category.SALARY, "Holiday pay"),
-                Transaction.Line(account, pension, Transaction.Line.Category.PENSION_CONTRIBUTION, "Pension premium"),
-                Transaction.Line(account, tax, Transaction.Line.Category.TAX, "Wage tax", "NL36INGB0003445588"),
+                Transaction.Line(account, salary, Category.SALARY, "Salary"),
+                Transaction.Line(account, holiday, Category.SALARY, "Holiday pay"),
+                Transaction.Line(account, pension, Category.PENSION_CONTRIBUTION, "Pension premium"),
+                Transaction.Line(account, tax, Category.TAX, "Wage tax", "NL36INGB0003445588"),
                 Transaction.Line(account, -payment, None, "Salary payment", iban),
             ],
         ).complete()
@@ -105,10 +105,10 @@ class Loader:
             self.name,
             f"Past payslips in {year}",
             [
-                Transaction.Line(account, salary_past, Transaction.Line.Category.SALARY, "Salary"),
-                Transaction.Line(account, other_past, Transaction.Line.Category.SALARY, "Unspecified income"),
-                Transaction.Line(account, pension_past, Transaction.Line.Category.PENSION_CONTRIBUTION, "Pension premium"),
-                Transaction.Line(account, tax_past, Transaction.Line.Category.TAX, "Wage tax", "NL36INGB0003445588"),
+                Transaction.Line(account, salary_past, Category.SALARY, "Salary"),
+                Transaction.Line(account, other_past, Category.SALARY, "Unspecified income"),
+                Transaction.Line(account, pension_past, Category.PENSION_CONTRIBUTION, "Pension premium"),
+                Transaction.Line(account, tax_past, Category.TAX, "Wage tax", "NL36INGB0003445588"),
             ],
         ).complete()
 

@@ -7,17 +7,16 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "3.10.1" # renovate github-tags:python/cpython:^v(?<version>.*)$
+"pdfminer.six" = "^20211012"
 beautifulsoup4 = "^4.10.0"
 bpylist2 = "^4.0.1"
 cryptography = "^36.0.0"
 dacite = "^1.6.0"
 inflection = "^0.5.1"
-pycryptodomex = "^3.12.0"
-pytz = "^2021.3"
+more-itertools = "^8.12.0"
 requests = "^2.26.0"
 srp = "^1.0.18"
 xmltodict = "^0.12.0"
-"pdfminer.six" = "^20211012"
 
 [tool.poetry.dev-dependencies]
 autopep8 = "^1.6.0"
@@ -25,6 +24,7 @@ black = {version = "^21.12b0", allow-prereleases = true}
 coverage = "^6.1.2"
 flake8 = "^4.0.1"
 flake8-black = "^0.2.3"
+flake8-isort = "^4.1.1"
 pytest = "^6.2.5"
 wemake-python-styleguide = "^0.16.0"
 
@@ -37,4 +37,6 @@ line-length = 200
 target-version = ["py310"]
 
 [tool.isort]
+line_length = 200
 profile = "black"
+py_version = 310

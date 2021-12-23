@@ -5,7 +5,6 @@ from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum, unique
-from hashlib import pbkdf2_hmac
 from io import BytesIO
 from os import environ
 from secrets import token_bytes
@@ -16,31 +15,34 @@ from uuid import uuid4
 import dacite
 import xmltodict as xml
 from bpylist2 import archiver
-from Cryptodome.Cipher import AES
-from Cryptodome.Util import Padding
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.padding import PKCS7
 from inflection import camelize, underscore
+from more_itertools import one
 from requests import post, request
 
-from core import BEGINNING, Account, Transaction
+from core import BEGINNING, Account, Category, Transaction
 
 KEY_SIZE = 16
 
 
 class Document:
     CATEGORIES = {
-        Transaction.Line.Category.CHILDREN: "Child/Dependent Expenses",
-        Transaction.Line.Category.FEE: "Service Charges/Fees",
-        Transaction.Line.Category.GROCERIES: "Groceries",
-        Transaction.Line.Category.HEALTHCARE: "Medical/Healthcare",
-        Transaction.Line.Category.INTEREST_INCOME: "Interest Income",
-        Transaction.Line.Category.INTEREST: "Interest Paid",
-        Transaction.Line.Category.INSURANCE: "Insurance",
-        Transaction.Line.Category.PENSION_CONTRIBUTION: "Retirement Contributions",
-        Transaction.Line.Category.PERSONAL_CARE: "Fitness/Personal Care",
-        Transaction.Line.Category.SALARY: "Paychecks/Wages",
-        Transaction.Line.Category.TAKEAWAY: "Dining/Restaurants",
-        Transaction.Line.Category.TAX: "Taxes",
-        Transaction.Line.Category.UTILITIES: "Utilities",
+        Category.CHILDREN: "Child/Dependent Expenses",
+        Category.FEE: "Service Charges/Fees",
+        Category.GROCERIES: "Groceries",
+        Category.HEALTHCARE: "Medical/Healthcare",
+        Category.INTEREST_INCOME: "Interest Income",
+        Category.INTEREST: "Interest Paid",
+        Category.INSURANCE: "Insurance",
+        Category.PENSION_CONTRIBUTION: "Retirement Contributions",
+        Category.PERSONAL_CARE: "Fitness/Personal Care",
+        Category.SALARY: "Paychecks/Wages",
+        Category.TAKEAWAY: "Dining/Restaurants",
+        Category.TAX: "Taxes",
+        Category.UTILITIES: "Utilities",
     }
 
     @dataclass
@@ -189,7 +191,7 @@ class Document:
     def __init__(self, name, password, credentials=(environ["BANKTIVITY_LOGIN"], environ["BANKTIVITY_PASSWORD"])):
         self.url = "https://apollo.iggnetservices.com/apollo"
         self.token = self.login(*credentials)
-        (doc,) = filter(lambda doc: doc["name"] == name, self.api("documents")["documents"])
+        doc = one(filter(lambda doc: doc["name"] == name, self.api("documents")["documents"]))
         self.key = self.decrypt_key(password, doc["keyData"])
         self.url += f"/documents/{doc['id']}"
 
@@ -207,7 +209,7 @@ class Document:
     def decrypt_key(self, password, data):
         data = BytesIO(b64decode(data))
         assert data.read(2) == b"\x01\x01"
-        hashed = pbkdf2_hmac("sha1", password.encode(), data.read(8), 1701, KEY_SIZE)
+        hashed = PBKDF2HMAC(hashes.SHA1(), KEY_SIZE, data.read(8), 1701).derive(password.encode())  # noqa: S303 - have to follow Banktivity's choice of SHA-1
         key = BytesIO(self.decrypt(data, hashed))
         assert key.read(4) == b"Lisa"
         return key.read()
@@ -218,19 +220,19 @@ class Document:
         response.raise_for_status()
         return response.json()
 
-    def cipher(self, iv, key=None):
-        key = key or self.key
-        assert len(key) == KEY_SIZE
-        return AES.new(key, AES.MODE_CBC, IV=iv)
-
-    def encrypt(self, data):
+    def encrypt(self, plaintext):
         iv = token_bytes(KEY_SIZE)
-        cipher = self.cipher(iv)
-        return iv + cipher.encrypt(Padding.pad(data, cipher.block_size))
+        padder = PKCS7(KEY_SIZE * 8).padder()
+        padded_data = padder.update(plaintext) + padder.finalize()
+        encryptor = Cipher(algorithms.AES(self.key), modes.CBC(iv)).encryptor()
+        encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+        return iv + encrypted_data
 
     def decrypt(self, data, key=None):
-        cipher = self.cipher(data.read(KEY_SIZE), key)
-        return Padding.unpad(cipher.decrypt(data.read()), cipher.block_size)
+        decryptor = Cipher(algorithms.AES(key or self.key), modes.CBC(data.read(KEY_SIZE))).decryptor()
+        decrypted_data = decryptor.update(data.read()) + decryptor.finalize()
+        unpadder = PKCS7(KEY_SIZE * 8).unpadder()
+        return unpadder.update(decrypted_data) + unpadder.finalize()
 
     def child_list(self, parent, name):
         value = parent.get(name, [])

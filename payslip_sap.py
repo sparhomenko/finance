@@ -2,12 +2,12 @@ import re
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum, auto
+from zoneinfo import ZoneInfo
 
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LAParams, LTTextContainer
-from pytz import timezone
 
-from core import BEGINNING, Account, Transaction
+from core import BEGINNING, Account, Category, Transaction
 
 
 class Loader:
@@ -83,16 +83,16 @@ class Loader:
 
         account = Account(self.number, self.name, Account.Type.LIABILITY, Decimal(0), self.name, None)
         Transaction(
-            datetime(year, month, 25, tzinfo=timezone("Europe/Amsterdam")),
+            datetime(year, month, 25, tzinfo=ZoneInfo("Europe/Amsterdam")),
             self.name,
             f"Payslip {period}",
             [
-                Transaction.Line(account, salary, Transaction.Line.Category.SALARY, "Salary"),
-                Transaction.Line(account, holiday, Transaction.Line.Category.SALARY, "Holiday pay"),
-                Transaction.Line(account, pension, Transaction.Line.Category.PENSION_CONTRIBUTION, "Pension premium"),
-                Transaction.Line(account, disability_gap_insurance, Transaction.Line.Category.INSURANCE, "WIA-Gap insurance premium"),
-                Transaction.Line(account, disability_surplus_insurance, Transaction.Line.Category.INSURANCE, "WIA-Surplus insurance premium"),
-                Transaction.Line(account, tax, Transaction.Line.Category.TAX, "Wage tax", "NL36INGB0003445588"),
+                Transaction.Line(account, salary, Category.SALARY, "Salary"),
+                Transaction.Line(account, holiday, Category.SALARY, "Holiday pay"),
+                Transaction.Line(account, pension, Category.PENSION_CONTRIBUTION, "Pension premium"),
+                Transaction.Line(account, disability_gap_insurance, Category.INSURANCE, "WIA-Gap insurance premium"),
+                Transaction.Line(account, disability_surplus_insurance, Category.INSURANCE, "WIA-Surplus insurance premium"),
+                Transaction.Line(account, tax, Category.TAX, "Wage tax", "NL36INGB0003445588"),
                 Transaction.Line(account, wfh, None, "WFH allowance"),
                 Transaction.Line(account, -payment, None, "Salary payment", iban),
             ],
@@ -102,10 +102,10 @@ class Loader:
             self.name,
             f"Past payslips in {year}",
             [
-                Transaction.Line(account, other_past, Transaction.Line.Category.SALARY, "Unspecified income"),
-                Transaction.Line(account, pension_past, Transaction.Line.Category.PENSION_CONTRIBUTION, "Pension premium"),
-                Transaction.Line(account, disability_gap_insurance_past, Transaction.Line.Category.INSURANCE, "WIA-Gap insurance premium"),
-                Transaction.Line(account, tax_past, Transaction.Line.Category.TAX, "Wage tax", "NL36INGB0003445588"),
+                Transaction.Line(account, other_past, Category.SALARY, "Unspecified income"),
+                Transaction.Line(account, pension_past, Category.PENSION_CONTRIBUTION, "Pension premium"),
+                Transaction.Line(account, disability_gap_insurance_past, Category.INSURANCE, "WIA-Gap insurance premium"),
+                Transaction.Line(account, tax_past, Category.TAX, "Wage tax", "NL36INGB0003445588"),
             ],
         ).complete()
         return [account]

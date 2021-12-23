@@ -1,24 +1,23 @@
-import hmac
 import json
 import re
 from base64 import b64decode, b64encode
 from datetime import datetime
 from decimal import ROUND_DOWN, Decimal
-from hashlib import sha256, sha512
-from itertools import chain
 from secrets import token_bytes
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 import srp
-from Cryptodome.Cipher import AES, PKCS1_v1_5
-from Cryptodome.PublicKey import RSA
-from Cryptodome.Util import Padding
-from cryptography.hazmat.primitives import asymmetric, hashes, serialization
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec, padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.hmac import HMAC
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from pytz import timezone
+from cryptography.hazmat.primitives.padding import PKCS7
+from more_itertools import distribute, interleave
 from requests import Request, Session, post
 
-from core import Account, Transaction
+from core import Account, Category, Transaction
 
 NO_IV = bytearray(16)
 SESSION_COUNTER = 500
@@ -33,8 +32,7 @@ class Profile:
 
         def process_challenge(self, salt, server_public_value):
             super().process_challenge(salt, server_public_value)
-            session = self.S.to_bytes(128, "big")
-            self.K = bytes(chain.from_iterable(zip(self.hash_class(session[::2]).digest(), self.hash_class(session[1::2]).digest())))  # noqa: WPS111
+            self.K = bytes(interleave(*map(lambda part: self.hash_class(bytes(part)).digest(), distribute(2, self.S.to_bytes(128, "big")))))  # noqa: WPS111
             srp.rfc5054_enable(False)
             return srp._pysrp.calculate_M(self.hash_class, self.N, self.g, self.u.to_bytes(32, "big"), self.s, self.A, self.B, self.K)  # noqa: WPS437
 
@@ -43,7 +41,7 @@ class Profile:
         self.session.headers = {"X-Capability": "proxy-protocol-version:2.0"}
         self.auth_key = None
         self.auth_key = self.login1_srp6a(profile_id, pin, device_id)
-        self.auth_key = self.login2_rsa(RSA.import_key(key))
+        self.auth_key = self.login2_rsa(serialization.load_pem_private_key(key.encode(), None))
         self.proxy_key, self.hmac_key = self.login3_ecdh()
         self.access_token = self.login4_oauth()
 
@@ -71,10 +69,10 @@ class Profile:
     def login2_rsa(self, private_key):
         session_counter = self.encrypt(self.auth_key, str(SESSION_COUNTER)).hex()
         encrypted_auth_key = bytes.fromhex(self.auth_api("getSessionKey", "getSessionKeyResponseEnvelope", {"sessionCounter": session_counter})["sessionKey"])
-        return PKCS1_v1_5.new(private_key).decrypt(encrypted_auth_key, "")
+        return private_key.decrypt(encrypted_auth_key, padding.PKCS1v15())
 
     def login3_ecdh(self):
-        private_key = asymmetric.ec.generate_private_key(asymmetric.ec.SECP256R1())
+        private_key = ec.generate_private_key(ec.SECP256R1())
         auth_response = post(
             "https://api.mobile.ing.nl/security/means/bootstrap/v2/key-agreement",
             json={
@@ -86,7 +84,7 @@ class Profile:
         ).json()
         salt = b64decode(auth_response["serverNonce"])
         server_public_key = serialization.load_der_public_key(b64decode(auth_response["serverPublicKey"]))
-        derived_key = HKDF(hashes.SHA256(), 32 + 64, salt, None).derive(private_key.exchange(asymmetric.ec.ECDH(), server_public_key))
+        derived_key = HKDF(hashes.SHA256(), 32 + 64, salt, None).derive(private_key.exchange(ec.ECDH(), server_public_key))
         self.access_token = auth_response["authenticationResponse"]["accessTokens"]["accessToken"]
         return self.split(derived_key, 32)
 
@@ -98,18 +96,22 @@ class Profile:
         return (obj[:index], obj[index:])
 
     def encrypt(self, key, plaintext, iv=NO_IV):
-        cipher = AES.new(key, AES.MODE_CBC, iv=iv)
-        return cipher.encrypt(Padding.pad(plaintext.encode(), 16))
+        padder = PKCS7(128).padder()
+        padded_data = padder.update(plaintext.encode()) + padder.finalize()
+        encryptor = Cipher(algorithms.AES(key), modes.CBC(iv)).encryptor()
+        return encryptor.update(padded_data) + encryptor.finalize()
 
-    def decrypt(self, key, encrypted, iv=NO_IV):
-        cipher = AES.new(key, AES.MODE_CBC, iv=iv)
-        return Padding.unpad(cipher.decrypt(encrypted), 16).decode()
+    def decrypt(self, key, encrypted_data, iv=NO_IV):
+        decryptor = Cipher(algorithms.AES(key), modes.CBC(iv)).decryptor()
+        decrypted_data = decryptor.update(encrypted_data) + decryptor.finalize()
+        unpadder = PKCS7(128).unpadder()
+        return unpadder.update(decrypted_data) + unpadder.finalize()
 
     def hash(self, *values):
-        result = sha256()
+        digest = hashes.Hash(hashes.SHA256())
         for value in values:
-            result.update(value)
-        return result.digest()
+            digest.update(value)
+        return digest.finalize()
 
     def b64(self, data):
         return b64encode(data).decode()
@@ -118,13 +120,14 @@ class Profile:
         body = json.dumps({"method": "GET", "path": path, "query": query}).replace("/", r"\/")
         iv = token_bytes(16)
         data = self.encrypt(self.proxy_key, body, iv) + iv
-        hashed = hmac.new(self.hmac_key, data, sha512).digest()
+        hmac = HMAC(self.hmac_key, hashes.SHA512())
+        hmac.update(data)
+        hashed = hmac.finalize()
         response = post("https://api.mobile.ing.nl/proxy", data + hashed, headers={"Authorization": f"Bearer {self.access_token}"})
-        if not 200 <= response.status_code < 300:
-            raise ValueError(response.text())
+        response.raise_for_status()
         data, iv = self.split(response.content[:-64], -16)
         response = json.loads(self.decrypt(self.proxy_key, data, iv))
-        if not 200 <= response["status"] < 300:
+        if response["status"] not in range(200, 400):
             raise ValueError(response)
         return json.loads(b64decode(response["content"]), parse_float=Decimal)
 
@@ -136,8 +139,7 @@ class Profile:
             response = self.proxy_api(parsed.path, parsed.query)
         else:
             response = self.session.send(request)
-            if not 200 <= response.status_code < 300:
-                raise ValueError(response.text())
+            response.raise_for_status()
             response = response.json()
         response = response["securityProxyResponseEnvelope"]
         if response["resultCode"] != "OK":
@@ -194,7 +196,7 @@ class Profile:
                 next_link = (response, "next")
                 for data in response["transactions"]:
                     transaction = Transaction(
-                        datetime.strptime(data["executionDate"], "%Y-%m-%d").replace(tzinfo=timezone("Europe/Amsterdam")),
+                        datetime.strptime(data["executionDate"], "%Y-%m-%d").replace(tzinfo=ZoneInfo("Europe/Amsterdam")),
                         data["subject"],
                         " ".join(data.get("subjectLines", [])),
                         [Transaction.Line(account, Decimal(data["amount"]["value"]))],
@@ -225,7 +227,7 @@ class Profile:
             line = line.removeprefix("Pasvolgnr: ")
             card, date = line.split(" ", 1)
             transaction.number = int(card)
-            transaction.date = datetime.strptime(date, "%d-%m-%Y %H:%M").replace(tzinfo=timezone("Europe/Amsterdam"))
+            transaction.date = datetime.strptime(date, "%d-%m-%Y %H:%M").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
             transaction.description = lines[2]
 
     def beautify_omschrijving(self, data, transaction):
@@ -240,7 +242,7 @@ class Profile:
                 elif line.startswith("IBAN: "):
                     decription_goes_on = False
                 elif line.startswith("Datum/Tijd:"):
-                    transaction.date = datetime.strptime(line.removeprefix("Datum/Tijd: "), "%d-%m-%Y %H:%M:%S").replace(tzinfo=timezone("Europe/Amsterdam"))
+                    transaction.date = datetime.strptime(line.removeprefix("Datum/Tijd: "), "%d-%m-%Y %H:%M:%S").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
                 elif decription_goes_on:
                     transaction.description += f" {line.rstrip()}"
 
@@ -252,7 +254,7 @@ class Profile:
                 fee = Decimal(data["fee"]["value"])
                 transaction.lines[0].amount -= fee
                 transaction.lines[0].description = f"{source_amount['value']} {source_amount['currency']} * {data['exchangeRate']}"
-                transaction.lines.append(Transaction.Line(transaction.lines[0].account, fee, Transaction.Line.Category.FEE, "Currency exchange fee"))
+                transaction.lines.append(Transaction.Line(transaction.lines[0].account, fee, Category.FEE, "Currency exchange fee"))
 
     def beautify_savings_transfer(self, data, transaction):
         if transaction.payee.startswith("Oranje spaarrekening "):
@@ -300,6 +302,6 @@ def match_mortgage_payment(account, transaction, line):
         None,
         [
             Transaction.Line(account, -line.amount, counter_account_number=line.account.number),
-            Transaction.Line(account, interest, Transaction.Line.Category.INTEREST, "Interest"),
+            Transaction.Line(account, interest, Category.INTEREST, "Interest"),
         ],
     )

@@ -4,10 +4,9 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum, auto, unique
 from typing import Callable
+from zoneinfo import ZoneInfo
 
-from pytz import timezone
-
-BEGINNING = datetime(2021, 11, 1, tzinfo=timezone("Europe/Amsterdam"))
+BEGINNING = datetime(2021, 11, 1, tzinfo=ZoneInfo("Europe/Amsterdam"))
 
 transactions = []
 matches = {}
@@ -47,26 +46,27 @@ class Account:
                         transaction.complete()
 
 
+@unique
+class Category(Enum):
+    CHILDREN = auto()
+    FEE = auto()
+    GROCERIES = auto()
+    HEALTHCARE = auto()
+    INTEREST = auto()
+    INTEREST_INCOME = auto()
+    INSURANCE = auto()
+    PENSION_CONTRIBUTION = auto()
+    PERSONAL_CARE = auto()
+    SALARY = auto()
+    TAKEAWAY = auto()
+    TAX = auto()
+    UTILITIES = auto()
+
+
 @dataclass
 class Transaction:
     @dataclass
     class Line:
-        @unique
-        class Category(Enum):
-            CHILDREN = auto()
-            FEE = auto()
-            GROCERIES = auto()
-            HEALTHCARE = auto()
-            INTEREST = auto()
-            INTEREST_INCOME = auto()
-            INSURANCE = auto()
-            PENSION_CONTRIBUTION = auto()
-            PERSONAL_CARE = auto()
-            SALARY = auto()
-            TAKEAWAY = auto()
-            TAX = auto()
-            UTILITIES = auto()
-
         RULES = {
             r"ALBERT HEIJN \d+": Category.GROCERIES,
             "Basic Fit Nederland B.V.": Category.PERSONAL_CARE,

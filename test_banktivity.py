@@ -1,9 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
 from urllib.parse import urlunparse
+from zoneinfo import ZoneInfo
 
 from pytest import raises
-from pytz import timezone
 
 from banktivity import Document
 from core import Account, Transaction
@@ -47,7 +47,7 @@ def test_transaction():
     data = Transaction(
         Account(None, "Checking", None, None, None, None),
         Decimal(-21),
-        datetime(2021, 9, 13, tzinfo=timezone("Europe/Amsterdam")),
+        datetime(2021, 9, 13, tzinfo=ZoneInfo("Europe/Amsterdam")),
         "Test Payee",
         "Test Description",
         cleared=False,
