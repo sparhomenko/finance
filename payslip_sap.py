@@ -12,6 +12,7 @@ from core import BEGINNING, Account, Category, Transaction
 
 class Loader:
     class Section(Enum):
+        HEADER = auto()
         TABLE = auto()
         CUMULATIVE = auto()
 
@@ -27,36 +28,45 @@ class Loader:
         return -amount if negative else amount
 
     def load(self):
-        month = 11
+        month = 12
         year = 2021
         period = f"{year}_{month:02}"
 
-        headers = []
+        header_lines = []
+        table_headers = []
         table = {}
         cumulative = {}
         for page in extract_pages(f"{self.path}/6083_{period}_Payslip.pdf", laparams=LAParams(line_margin=-1)):
-            section = None
+            section = Loader.Section.HEADER
             for element in page:
                 if isinstance(element, LTTextContainer):
                     text = element.get_text().removesuffix("\n")
                     parts = re.split(" {2,}", text)
                     if parts[0] == "Table Wage":
                         section = Loader.Section.TABLE
-                        headers = parts
+                        table_headers = parts
                     elif parts[0] == "Cumulative Amounts":
                         section = Loader.Section.CUMULATIVE
+                    elif section == Loader.Section.HEADER:
+                        header_lines.append(parts)
                     elif section == Loader.Section.TABLE:
                         row = {}
                         text = text[34:]
                         for index, pos in enumerate(range(0, len(text), 13)):
                             amount = text[pos : pos + 13].strip()
                             if amount:
-                                row[headers[index]] = self.to_decimal(amount)
+                                row[table_headers[index]] = self.to_decimal(amount)
                         table[parts[0]] = row
                     elif section == Loader.Section.CUMULATIVE:
                         if len(parts) % 2 == 0:
                             for index in range(0, len(parts), 2):
                                 cumulative[parts[index]] = parts[index + 1]
+
+        date = header_lines[0][2]
+        assert date.startswith("Print date: ")
+        date = datetime.strptime(date.removeprefix("Print date: "), "%d.%m.%Y").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
+        assert date.year == year
+        assert date.month == month
 
         iban = list(table.keys())[-1]
         salary = table["Salary"]["Payment"]
@@ -83,7 +93,7 @@ class Loader:
 
         account = Account(self.number, self.name, Account.Type.LIABILITY, Decimal(0), self.name, None)
         Transaction(
-            datetime(year, month, 25, tzinfo=ZoneInfo("Europe/Amsterdam")),
+            date,
             self.name,
             f"Payslip {period}",
             [
