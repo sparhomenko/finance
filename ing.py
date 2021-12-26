@@ -302,6 +302,6 @@ def match_mortgage_payment(account, transaction, line):
         None,
         [
             Transaction.Line(account, -line.amount, counter_account_number=line.account.number),
-            Transaction.Line(account, interest, Category.INTEREST, "Interest"),
+            Transaction.Line(account, interest, Category.INTEREST, "Interest", tax_year=transaction.date.year),
         ],
     )

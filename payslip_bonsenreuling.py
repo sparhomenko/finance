@@ -56,60 +56,44 @@ class Loader:
         return Decimal(text.replace(".", "").replace(",", "."))
 
     def load(self):
-        year = 2021
-        month = 11
-        period = f"{year}-{month}-M"
-        response = self.session.get("https://bonsenreuling.nmbrs.nl/handlers/Popups/PopupHandler.ashx", params={"action": "LoadPopup", "id": 292, "args": period})
-        assert response.headers["Content-Type"] == "text/plain; charset=utf-8"
+        year = BEGINNING.year
+        month = 0
+        account = Account(self.number, self.name, Account.Type.LIABILITY, Decimal(0), self.name, None)
+        while True:
+            month += 1
+            if month > 12:
+                month = 1
+                year += 1
+            period = f"{year}-{month}-M"
+            response = self.session.get("https://bonsenreuling.nmbrs.nl/handlers/Popups/PopupHandler.ashx", params={"action": "LoadPopup", "id": 292, "args": period})
+            assert response.headers["Content-Type"] == "text/plain; charset=utf-8"
 
-        html = BeautifulSoup(response.json()["content"], "html.parser")
-        content = self.parse_rows(html.find_all(class_="tblPayslipContent")[1])
-        reservation = self.parse_rows(html.find(class_="tblPayslipResContent"))
-        cumulative = self.parse_headers(html.find(class_="tblPayslipCumContent"))
+            html = BeautifulSoup(response.json()["content"], "html.parser")
+            content = html.find_all(class_="tblPayslipContent")
+            if not content:
+                break
+            content = self.parse_rows(content[1])
+            reservation = self.parse_rows(html.find(class_="tblPayslipResContent"))
 
-        iban = html.find(style="background-color:#ccc;").text.removeprefix("Account number IBAN: ")
+            iban = html.find(style="background-color:#ccc;").text.removeprefix("Account number IBAN: ")
+            salary = content["Gross Salary"]["Payment"]
+            pension = -content["Deduction Pension premium"]["Retention"]
+            holiday_payment = content.get("Holiday pay", {}).get("Payment", 0)
+            payment = content["Net payment"]["Payment"]
+            holiday = reservation["Holiday pay"]["Res"]
+            tax = -content["Wage tax Table"]["Retention"] - content.get("Wage tax BT", {}).get("Retention", 0)
 
-        salary = content["Gross Salary"]["Payment"]
-        salary_past = content["Gross Salary"]["Cumulative"] - salary
+            assert payment == salary + holiday_payment + pension + tax
 
-        pension = -content["Deduction Pension premium"]["Retention"]
-        pension_past = content["Deduction Pension premium"]["Cumulative"] - pension
-
-        payment = content["Net payment"]["Payment"]
-
-        holiday = reservation["Holiday pay"]["Res"]
-        holiday_total = reservation["Holiday pay"]["Balance"]
-
-        tax = -content["Wage tax Table"]["Retention"]
-        tax_past = -self.to_decimal(cumulative["Tax"]) - tax
-
-        other_past = self.to_decimal(cumulative["Fiscal wage"]) - salary_past - pension_past
-
-        assert payment == salary + pension + tax
-
-        account = Account(self.number, self.name, Account.Type.LIABILITY, holiday_total, self.name, None)
-        Transaction(
-            datetime(year, month, 25, tzinfo=ZoneInfo("Europe/Amsterdam")),
-            self.name,
-            f"Payslip {period}",
-            [
-                Transaction.Line(account, salary, Category.SALARY, "Salary"),
-                Transaction.Line(account, holiday, Category.SALARY, "Holiday pay"),
-                Transaction.Line(account, pension, Category.PENSION_CONTRIBUTION, "Pension premium"),
+            date = datetime(year, month, 25, tzinfo=ZoneInfo("Europe/Amsterdam"))
+            lines = [
+                Transaction.Line(account, salary, Category.SALARY, "Salary", tax_year=year),
+                Transaction.Line(account, holiday, Category.SALARY, "Holiday pay", tax_year=year if month <= 5 else year + 1),
+                Transaction.Line(account, pension, Category.PENSION_CONTRIBUTION, "Pension premium", tax_year=year),
                 Transaction.Line(account, tax, Category.TAX, "Wage tax", "NL36INGB0003445588"),
                 Transaction.Line(account, -payment, None, "Salary payment", iban),
-            ],
-        ).complete()
-        Transaction(
-            BEGINNING,
-            self.name,
-            f"Past payslips in {year}",
-            [
-                Transaction.Line(account, salary_past, Category.SALARY, "Salary"),
-                Transaction.Line(account, other_past, Category.SALARY, "Unspecified income"),
-                Transaction.Line(account, pension_past, Category.PENSION_CONTRIBUTION, "Pension premium"),
-                Transaction.Line(account, tax_past, Category.TAX, "Wage tax", "NL36INGB0003445588"),
-            ],
-        ).complete()
+            ]
+            Transaction(date, self.name, f"Payslip {date.strftime('%B %Y')}", lines).complete(must_have=True)
 
+        account.initial_balance = Decimal(0)
         return [account]

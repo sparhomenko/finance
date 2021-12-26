@@ -15,6 +15,7 @@ class Property:
         doc = one(self.api("api/geocoder/v3/suggest", params={"query": address}).json()["docs"])
         address = self.api("api/geocoder/v3/lookup", params={"id": doc["id"]}).json()
         self.id = int(address["adresseerbaarobject_id"])
+        self.value = {}
 
     def api(self, endpoint, **args):
         method = "POST" if "data" in args else "GET"
@@ -42,9 +43,7 @@ class Property:
                 </ogc:Filter>
             </wfs:Query>
         </wfs:GetFeature>"""
-        values = {}
         for feature in self.api("woz-proxy/wozloket", data=request).json()["features"]:
             date = datetime.strptime(feature["properties"]["wobj_wrd_ingangsdatum"], "%d-%m-%Y").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
-            date.replace(year=date.year - 1)
-            values[date] = Decimal(feature["properties"]["wobj_wrd_woz_waarde"])
-        return [Account(str(self.id), None, Account.Type.PROPERTY, list(values.values())[0], "WOZ value", "https://www.wozwaardeloket.nl")]
+            self.value[date.year - 1] = Decimal(feature["properties"]["wobj_wrd_woz_waarde"])
+        return [Account(str(self.id), None, Account.Type.PROPERTY, list(self.value.values())[0], "WOZ value", "https://www.wozwaardeloket.nl")]

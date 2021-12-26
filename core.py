@@ -43,7 +43,7 @@ class Account:
                 matched_transaction, matched_line = match
                 if matched_line.counter_account_number == self.number:
                     if transaction := self.matcher(self, matched_transaction, matched_line):
-                        transaction.complete()
+                        transaction.complete(must_have=True)
 
 
 @unique
@@ -52,9 +52,9 @@ class Category(Enum):
     FEE = auto()
     GROCERIES = auto()
     HEALTHCARE = auto()
+    INSURANCE = auto()
     INTEREST = auto()
     INTEREST_INCOME = auto()
-    INSURANCE = auto()
     PENSION_CONTRIBUTION = auto()
     PERSONAL_CARE = auto()
     SALARY = auto()
@@ -90,6 +90,7 @@ class Transaction:
         counter_account_number: str = None
         counter_account: Account = None
         ext_account_number: str = None
+        tax_year: int = None
 
         def merge(self, other: "Transaction"):
             assert self.amount == -other.amount
@@ -109,13 +110,13 @@ class Transaction:
     number: int = None
 
     def merge(self, other):
-        self.date = max(self.date, other.date)
+        self.date = min(self.date, other.date)
         self.lines += other.lines
         if len(self.lines) == 1:
             self.payee = None
 
-    def complete(self):
-        if self.date < BEGINNING:
+    def complete(self, must_have=False):
+        if self.date < BEGINNING and not must_have:
             return False
         for line in list(self.lines):
             line.account.initial_balance -= line.amount

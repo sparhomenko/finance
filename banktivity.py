@@ -34,9 +34,9 @@ class Document:
         Category.FEE: "Service Charges/Fees",
         Category.GROCERIES: "Groceries",
         Category.HEALTHCARE: "Medical/Healthcare",
+        Category.INSURANCE: "Insurance",
         Category.INTEREST_INCOME: "Interest Income",
         Category.INTEREST: "Interest Paid",
-        Category.INSURANCE: "Insurance",
         Category.PENSION_CONTRIBUTION: "Retirement Contributions",
         Category.PERSONAL_CARE: "Fitness/Personal Care",
         Category.SALARY: "Paychecks/Wages",
@@ -435,14 +435,15 @@ class Document:
             self.updated.append(group)
         group.ordered_items.append(Document.GroupItem(entity.id))
 
-        self.create_transaction(
-            Transaction(
-                BEGINNING - timedelta(days=1),
-                "STARTING BALANCE",
-                "BALANCE ADJUSTMENT",
-                [Transaction.Line(entity, account.initial_balance)],
-            ),
-        )
+        if account.initial_balance:
+            self.create_transaction(
+                Transaction(
+                    BEGINNING - timedelta(days=1),
+                    "STARTING BALANCE",
+                    "BALANCE ADJUSTMENT",
+                    [Transaction.Line(entity, account.initial_balance)],
+                ),
+            )
         return entity
 
     def create_transaction(self, transaction, adjustment=False):
