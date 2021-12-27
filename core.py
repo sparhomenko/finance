@@ -1,15 +1,17 @@
 import re
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum, auto, unique
+from itertools import chain
 from typing import Callable
 from zoneinfo import ZoneInfo
 
 BEGINNING = datetime(2021, 11, 1, tzinfo=ZoneInfo("Europe/Amsterdam"))
 
 transactions = []
-matches = {}
+matches = defaultdict(list)
 
 
 @dataclass
@@ -39,7 +41,7 @@ class Account:
 
     def complete(self):
         if self.matcher:
-            for match in list(matches.values()):
+            for match in list(chain.from_iterable(matches.values())):
                 matched_transaction, matched_line = match
                 if matched_line.counter_account_number == self.number:
                     if transaction := self.matcher(self, matched_transaction, matched_line):
@@ -121,16 +123,17 @@ class Transaction:
         for line in list(self.lines):
             line.account.initial_balance -= line.amount
             if line.counter_account_number:
-                match_key = (line.counter_account_number, line.get_ext_account_number(), -line.amount, self.date.year, self.date.month)
-                match = matches.pop(match_key, None)
-                if match:
+                match_list = matches.get((line.counter_account_number, line.get_ext_account_number(), -line.amount), None)
+                if match_list:
+                    match = min(match_list, key=lambda match: abs(match[0].date - self.date))
+                    match_list.remove(match)
                     matched_transaction, matched_line = match
                     line.merge(matched_line)
                     matched_transaction.lines.remove(matched_line)
                     self.merge(matched_transaction)
                     transactions.remove(matched_transaction)
                 else:
-                    matches[(line.get_ext_account_number(), line.counter_account_number, line.amount, self.date.year, self.date.month)] = (self, line)
+                    matches[(line.get_ext_account_number(), line.counter_account_number, line.amount)].append((self, line))
             if line.counter_account is None and line.category is None:
                 for rule in Transaction.Line.RULES.items():
                     if re.match(rule[0], self.payee):
