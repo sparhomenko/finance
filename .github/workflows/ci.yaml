@@ -18,10 +18,3 @@ jobs:
       run: poetry install
     - name: Lint
       run: poetry run flake8
-    - name: Unit Tests
-      run: poetry run coverage run --source=. --branch --omit='test_*' -m pytest
-      env:
-        BANKTIVITY_LOGIN: ${{ secrets.BANKTIVITY_LOGIN }}
-        BANKTIVITY_PASSWORD: ${{ secrets.BANKTIVITY_PASSWORD }}
-    - name: Check Coverage
-      run: poetry run coverage report --fail-under=50
