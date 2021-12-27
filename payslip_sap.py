@@ -101,7 +101,7 @@ class Loader:
                 Transaction.Line(account, disability_gap_insurance, Category.INSURANCE, "WIA-Gap insurance premium", tax_year=year),
                 Transaction.Line(account, disability_surplus_insurance, Category.INSURANCE, "WIA-Surplus insurance premium", tax_year=year),
                 Transaction.Line(account, tax, Category.TAX, "Wage tax", "NL36INGB0003445588"),
-                Transaction.Line(account, wfh, None, "WFH allowance"),
+                Transaction.Line(account, wfh, Category.SALARY, "WFH allowance"),
             ]
             if booking:
                 lines.append(Transaction.Line(account, booking, None, "Booking benefit"))
