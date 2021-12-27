@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from more_itertools import one
+from more_itertools import last, one
 from requests import Session
 
 from core import Account
@@ -46,4 +46,5 @@ class Property:
         for feature in self.api("woz-proxy/wozloket", data=request).json()["features"]:
             date = datetime.strptime(feature["properties"]["wobj_wrd_ingangsdatum"], "%d-%m-%Y").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
             self.value[date.year - 1] = Decimal(feature["properties"]["wobj_wrd_woz_waarde"])
-        return [Account(str(self.id), None, Account.Type.PROPERTY, list(self.value.values())[0], "WOZ value", "https://www.wozwaardeloket.nl")]
+        self.value = dict(sorted(self.value.items()))
+        return [Account(str(self.id), None, Account.Type.PROPERTY, last(self.value.values()), "WOZ value", "https://www.wozwaardeloket.nl")]
