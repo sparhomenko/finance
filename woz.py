@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 from more_itertools import last, one
 from requests import Session
 
-from core import Account
+from core import Account, Transaction
 
 
 class Property:
@@ -47,4 +47,9 @@ class Property:
             date = datetime.strptime(feature["properties"]["wobj_wrd_ingangsdatum"], "%d-%m-%Y").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
             self.value[date.year - 1] = Decimal(feature["properties"]["wobj_wrd_woz_waarde"])
         self.value = dict(sorted(self.value.items()))
-        return [Account(str(self.id), None, Account.Type.PROPERTY, last(self.value.values()), "WOZ value", "https://www.wozwaardeloket.nl")]
+        account = Account(str(self.id), None, Account.Type.PROPERTY, last(self.value.values()), "WOZ value", "https://www.wozwaardeloket.nl")
+        last_value = 0
+        for year, value in self.value.items():
+            Transaction(datetime(year, 1, 1, tzinfo=ZoneInfo("Europe/Amsterdam")), "WOZ value", None, [Transaction.Line(account, value - last_value)]).complete(must_have=True)
+            last_value = value
+        return [account]
