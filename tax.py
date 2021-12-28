@@ -29,4 +29,11 @@ class Loader:
 
 
 def match_any(account, matching_transaction, matching_line):
-    return Transaction(matching_transaction.date, matching_transaction.payee, matching_transaction.description, [Transaction.Line(account, -matching_line.amount, counter_account_number=matching_line.account.number)])
+    return Transaction(
+        matching_transaction.date,
+        matching_transaction.payee,
+        matching_transaction.description,
+        [
+            Transaction.Line(account, -matching_line.amount, counter_account_number=matching_line.account.number),
+        ],
+    )

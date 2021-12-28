@@ -214,6 +214,10 @@ class Profile:
                     self.beautify_abnamro_tikkie(data, transaction)
                     self.beautify_savings_transfer(data, transaction)
                     self.beautify_sns_betaalverzoek(data, transaction)
+                    self.beautify_payment_processors(transaction)
+                    self.beautify_thuisbezorgd(transaction)
+                    self.beautify_kosten(account, transaction)
+                    self.beautify_amazon(transaction)
                     if not transaction.complete():
                         more = False
         return accounts
@@ -290,6 +294,45 @@ class Profile:
     def beautify_sns_betaalverzoek(self, data, transaction):
         if transaction.payee == "SNS Betaalverzoek":
             transaction.payee, transaction.description = re.match(r"(.+) \d+ [A-Z]{2}\d{2}[A-Z]{4}\d{10} (.+)", transaction.description).groups()
+
+    def beautify_payment_processors(self, transaction):
+        if transaction.payee.startswith("iZ "):
+            transaction.payee = transaction.payee.removeprefix("iZ ").removeprefix("*")
+            transaction.description = None
+        elif transaction.payee.startswith("ZTL"):
+            transaction.payee = transaction.payee.removeprefix("ZTL")
+            transaction.description = None
+        elif transaction.payee.startswith("CCV"):
+            transaction.payee = transaction.payee.removeprefix("CCV")
+            transaction.description = None
+        elif transaction.payee.endswith(" via Mollie"):
+            transaction.payee = transaction.payee.removesuffix(" via Mollie")
+            transaction.description = re.match(r"\w+ \d+ (.*)", transaction.description)[1]
+        elif transaction.payee.endswith(" via Ingenico"):
+            transaction.payee = transaction.payee.removesuffix(" via Ingenico")
+            transaction.description = None
+        elif transaction.payee.endswith(" via MultiSafepay"):
+            transaction.payee = transaction.payee.removesuffix(" via MultiSafepay")
+            transaction.description = None
+
+    def beautify_thuisbezorgd(self, transaction):
+        if transaction.payee == "Thuisbezorgd.nl via Takeaway.com":
+            transaction.payee = "Thuisbezorgd.nl"
+            transaction.description = re.match(".* bestelling (.*) via", transaction.description)[1]
+        elif transaction.payee == "Thuisbezorgd.nl ThuisB":
+            transaction.payee = "Thuisbezorgd.nl"
+
+    def beautify_kosten(self, account, transaction):
+        if transaction.payee.startswith("Kosten "):
+            transaction.payee = account.bank_name
+            transaction.description = " ".join(re.match("(.*) {2,}(.*) {2,}.*", transaction.description).groups())
+            transaction.category = Category.FEE
+
+    def beautify_amazon(self, transaction):
+        if transaction.payee in {"Amazon EU SARL", "Amazon.de", "AMAZON PAYMENTS EUROPE S.C.A.", "AMAZON EU S.A R.L., NIEDERLASSUNG DEUTSCHLAND"} or transaction.payee.startswith("AMZN Mktp DE"):
+            transaction.payee = "Amazon"
+            transaction.lines[0].ext_account_number = "*"
+            transaction.lines[0].counter_account_number = "amazon"
 
 
 def match_mortgage_payment(account, transaction, line):

@@ -39,8 +39,8 @@ class Document:
         Category.INTEREST: "Interest Paid",
         Category.PENSION_CONTRIBUTION: "Retirement Contributions",
         Category.PERSONAL_CARE: "Fitness/Personal Care",
+        Category.RESTAURANTS: "Dining/Restaurants",
         Category.SALARY: "Paychecks/Wages",
-        Category.TAKEAWAY: "Dining/Restaurants",
         Category.TAX: "Taxes",
         Category.UTILITIES: "Utilities",
     }
@@ -436,17 +436,10 @@ class Document:
         group.ordered_items.append(Document.GroupItem(entity.id))
 
         if account.initial_balance:
-            self.create_transaction(
-                Transaction(
-                    BEGINNING - timedelta(days=1),
-                    "STARTING BALANCE",
-                    "BALANCE ADJUSTMENT",
-                    [Transaction.Line(entity, account.initial_balance)],
-                ),
-            )
+            self.create_transaction(Transaction(BEGINNING - timedelta(days=1), "STARTING BALANCE", "BALANCE ADJUSTMENT", [Transaction.Line(entity, account.initial_balance)]))
         return entity
 
-    def create_transaction(self, transaction, adjustment=False):
+    def create_transaction(self, transaction):
         lines = []
         account_lines = {}
 
@@ -486,7 +479,6 @@ class Document:
             note=transaction.description,
             line_items=lines,
             check_number=transaction.number,
-            adjustment=adjustment,
         )
         self.created.append(entity)
         return entity

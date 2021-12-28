@@ -1,7 +1,7 @@
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum, auto, unique
 from itertools import chain
@@ -59,8 +59,8 @@ class Category(Enum):
     INTEREST_INCOME = auto()
     PENSION_CONTRIBUTION = auto()
     PERSONAL_CARE = auto()
+    RESTAURANTS = auto()
     SALARY = auto()
-    TAKEAWAY = auto()
     TAX = auto()
     UTILITIES = auto()
 
@@ -70,19 +70,34 @@ class Transaction:
     @dataclass
     class Line:
         RULES = {
-            r"ALBERT HEIJN \d+": Category.GROCERIES,
+            "Bagel  Beans .*": Category.RESTAURANTS,
             "Basic Fit Nederland B.V.": Category.PERSONAL_CARE,
+            "Cafe Goos": Category.RESTAURANTS,
+            "circle lunchro.*": Category.RESTAURANTS,
             "CLASSPASS.COM.*": Category.PERSONAL_CARE,
-            r"Coop Supermarkt \d+": Category.GROCERIES,
             "CZ Groep Zorgverzekeraar": Category.HEALTHCARE,
             "De Elfentuin": Category.CHILDREN,
             "Getir": Category.GROCERIES,
+            "Head Enlight Distr": Category.PERSONAL_CARE,
             "HELLOFRESH": Category.GROCERIES,
+            "NATIONALE-NEDERLANDEN": Category.INSURANCE,
             "PARTOU BV": Category.CHILDREN,
             "Rente": Category.INTEREST_INCOME,
+            "Rocket Delivery B.V.": Category.RESTAURANTS,
             "Russian Gymnasium Amsterdam": Category.CHILDREN,
-            r"UBER\s+\*EATS.*": Category.TAKEAWAY,
+            "SHURGARD NEDERLAND B.V.": Category.UTILITIES,
+            "Sophie Eats": Category.RESTAURANTS,
+            "T-MOBILE NETHERLANDS B.V.": Category.UTILITIES,
+            "TELE2": Category.UTILITIES,
+            "Thuisbezorgd.nl": Category.RESTAURANTS,
             "Vattenfall Klantenservice N.V.": Category.UTILITIES,
+            "VVE Geleenstraat 31 - 33": Category.UTILITIES,
+            "Waternet/Gem. Amsterdam": Category.UTILITIES,
+            "ZIGGO SERVICES BV": Category.UTILITIES,
+            r"ALBERT HEIJN \d+": Category.GROCERIES,
+            r"Coop Supermarkt \d+": Category.GROCERIES,
+            r"Gall  Gall \d+": Category.GROCERIES,
+            r"UBER\s+\*EATS.*": Category.RESTAURANTS,
         }
 
         account: Account
@@ -123,9 +138,10 @@ class Transaction:
         for line in list(self.lines):
             line.account.initial_balance -= line.amount
             if line.counter_account_number:
-                match_list = matches.get((line.counter_account_number, line.get_ext_account_number(), -line.amount), None)
-                if match_list:
-                    match = min(match_list, key=lambda match: abs(match[0].date - self.date))
+                match_list = matches.get((line.counter_account_number, line.get_ext_account_number(), -line.amount), [])
+                close_matches = [(delta, match) for match in match_list if (delta := abs(match[0].date - self.date)) < timedelta(weeks=3)]
+                if close_matches:
+                    match = min(close_matches, key=lambda match: match[0])[1]
                     match_list.remove(match)
                     matched_transaction, matched_line = match
                     line.merge(matched_line)
