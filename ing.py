@@ -327,7 +327,7 @@ class Profile:
         if transaction.payee.startswith("Kosten "):
             transaction.payee = account.bank_name
             transaction.description = " ".join(re.match("(.*) {2,}(.*) {2,}.*", transaction.description).groups())
-            transaction.category = Category.FEE
+            transaction.lines[0].category = Category.FEE
 
     def beautify_amazon(self, transaction):
         if transaction.payee in {"Amazon EU SARL", "Amazon.de", "AMAZON PAYMENTS EUROPE S.C.A.", "AMAZON EU S.A R.L., NIEDERLASSUNG DEUTSCHLAND"} or transaction.payee.startswith("AMZN Mktp DE"):

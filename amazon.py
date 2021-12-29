@@ -37,7 +37,7 @@ class Loader:
         return Decimal(text.removeprefix("EUR ").replace(",", "."))
 
     def load(self):
-        account = Account("amazon", "Amazon", Account.Type.LIABILITY, Decimal(0), "Amazon", "https://amazon.de")
+        account = Account("amazon", "Amazon", Account.Type.CURRENT, Decimal(0), "Amazon", "https://amazon.de")
         orders = []
         for order_element in self.browser.find_elements(By.XPATH, "//*[contains(@class, ' order ')]"):
             values = order_element.find_elements(By.XPATH, ".//span[contains(@class, ' value')]")

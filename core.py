@@ -54,9 +54,11 @@ class Account:
 @unique
 class Category(Enum):
     CHILDREN = auto()
+    ENTERTAINMENT = auto()
     FEE = auto()
     GROCERIES = auto()
     HEALTHCARE = auto()
+    HOME = auto()
     INSURANCE = auto()
     INTEREST = auto()
     INTEREST_INCOME = auto()
@@ -65,6 +67,7 @@ class Category(Enum):
     RESTAURANTS = auto()
     SALARY = auto()
     TAX = auto()
+    TRANSPORT = auto()
     UTILITIES = auto()
 
 
@@ -73,6 +76,7 @@ class Transaction:
     @dataclass
     class Line:
         RULES = {
+            "Adobe Systems Software Ireland LTD": Category.ENTERTAINMENT,
             "Bagel  Beans .*": Category.RESTAURANTS,
             "Basic Fit Nederland B.V.": Category.PERSONAL_CARE,
             "Cafe Goos": Category.RESTAURANTS,
@@ -80,19 +84,33 @@ class Transaction:
             "CLASSPASS.COM.*": Category.PERSONAL_CARE,
             "CZ Groep Zorgverzekeraar": Category.HEALTHCARE,
             "De Elfentuin": Category.CHILDREN,
+            "Feduzzis Mercato": Category.GROCERIES,
             "Getir": Category.GROCERIES,
+            "GM Gelato Natural": Category.RESTAURANTS,
+            "Greenwheels": Category.TRANSPORT,
             "Head Enlight Distr": Category.PERSONAL_CARE,
             "HELLOFRESH": Category.GROCERIES,
+            "NABU CASA - HA CLOUD": Category.HOME,
             "NATIONALE-NEDERLANDEN": Category.INSURANCE,
+            "O DONNELS": Category.RESTAURANTS,
+            "Park Kiosk BEA": Category.RESTAURANTS,
             "PARTOU BV": Category.CHILDREN,
+            "Patisserie Tout": Category.GROCERIES,
+            "QUIP NYC INC.": Category.HEALTHCARE,
             "Rente": Category.INTEREST_INCOME,
+            "Ridammerhoeve": Category.RESTAURANTS,
             "Rocket Delivery B.V.": Category.RESTAURANTS,
             "Russian Gymnasium Amsterdam": Category.CHILDREN,
             "SHURGARD NEDERLAND B.V.": Category.UTILITIES,
             "Sophie Eats": Category.RESTAURANTS,
+            "Spotify AB": Category.ENTERTAINMENT,
             "T-MOBILE NETHERLANDS B.V.": Category.UTILITIES,
+            "TAF BV": Category.INSURANCE,
             "TELE2": Category.UTILITIES,
             "Thuisbezorgd.nl": Category.RESTAURANTS,
+            "TLS BV inz. OV-Chipkaart": Category.TRANSPORT,
+            "TrompkaasMaasstraat": Category.GROCERIES,
+            "Van Vessem  Le Pati": Category.GROCERIES,
             "Vattenfall Klantenservice N.V.": Category.UTILITIES,
             "VVE Geleenstraat 31 - 33": Category.UTILITIES,
             "Waternet/Gem. Amsterdam": Category.UTILITIES,

@@ -32,8 +32,10 @@ class Document:
     CATEGORIES = {
         Category.CHILDREN: "Child/Dependent Expenses",
         Category.FEE: "Service Charges/Fees",
+        Category.ENTERTAINMENT: "Entertainment",
         Category.GROCERIES: "Groceries",
         Category.HEALTHCARE: "Medical/Healthcare",
+        Category.HOME: "Home Maintenance",
         Category.INSURANCE: "Insurance",
         Category.INTEREST_INCOME: "Interest Income",
         Category.INTEREST: "Interest Paid",
@@ -42,6 +44,7 @@ class Document:
         Category.RESTAURANTS: "Dining/Restaurants",
         Category.SALARY: "Paychecks/Wages",
         Category.TAX: "Taxes",
+        Category.TRANSPORT: "Travel",
         Category.UTILITIES: "Utilities",
     }
 
