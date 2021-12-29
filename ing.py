@@ -218,6 +218,7 @@ class Profile:
                     self.beautify_thuisbezorgd(transaction)
                     self.beautify_kosten(account, transaction)
                     self.beautify_amazon(transaction)
+                    self.beautify_paypal(transaction)
                     if not transaction.complete():
                         more = False
         return accounts
@@ -333,6 +334,12 @@ class Profile:
             transaction.payee = "Amazon"
             transaction.lines[0].ext_account_number = "*"
             transaction.lines[0].counter_account_number = "amazon"
+
+    def beautify_paypal(self, transaction):
+        if transaction.payee == "PayPal (Europe) S.a.r.l. et Cie., S.C.A." or transaction.payee.startswith("PAYPAL *"):
+            transaction.payee = "PayPal"
+            transaction.lines[0].ext_account_number = "*"
+            transaction.lines[0].counter_account_number = "paypal"
 
 
 def match_mortgage_payment(account, transaction, line):

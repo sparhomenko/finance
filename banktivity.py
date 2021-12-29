@@ -467,10 +467,10 @@ class Document:
                 lines.append(Document.LineItem(account, -line.amount, -line.amount, cleared=transaction.cleared, memo=line.description))
         if transfer:
             transaction_type = self.transaction_type_transfer
-        elif total < 0:
-            transaction_type = self.transaction_type_withdrawal
-        else:
+        elif total > 0:
             transaction_type = self.transaction_type_deposit
+        else:
+            transaction_type = self.transaction_type_withdrawal
         entity = Document.Transaction(
             currency=self.default_currency,
             date=transaction.date,

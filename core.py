@@ -39,6 +39,9 @@ class Account:
     matcher: Callable[["Account", "Transaction", "Transaction.Line"], "Transaction"] = None
     tax_base: Decimal = field(default_factory=lambda: Decimal(0))
 
+    def __str__(self):
+        return f"{self.number}"
+
     def complete(self):
         if self.matcher:
             for match in list(chain.from_iterable(matches.values())):
@@ -109,6 +112,9 @@ class Transaction:
         ext_account_number: str = None
         tax_year: int = None
 
+        def __str__(self):
+            return f"{self.amount:8} {self.description or '':8.8}"
+
         def merge(self, other: "Transaction"):
             assert self.amount == -other.amount
             assert self.counter_account_number == other.get_ext_account_number()
@@ -125,6 +131,9 @@ class Transaction:
     lines: list[Line]
     cleared: bool = True
     number: int = None
+
+    def __str__(self):
+        return f"{self.date.strftime('%Y-%m-%d %H:%M:%S')} {self.payee:15.15} [{', '.join(map(str, self.lines)):100.100}]"
 
     def merge(self, other):
         self.date = min(self.date, other.date)
