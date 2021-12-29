@@ -16,5 +16,7 @@ jobs:
         poetry-version: 1.1.12  # renovate pypi:poetry
     - name: Setup Dependencies
       run: poetry install
+    - name: Check types
+      run: poetry run mypy .
     - name: Lint
       run: poetry run flake8

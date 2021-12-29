@@ -1,0 +1,13 @@
+from typing import Generic, Iterable, TypeVar
+
+class PageElement:
+    @property
+    def text(self) -> str: ...
+
+_PageElementT = TypeVar("_PageElementT", bound=PageElement)
+
+class ResultSet(list[_PageElementT], Generic[_PageElementT]): ...
+
+class Tag(PageElement):
+    def find(self, **kwargs: str) -> PageElement: ...
+    def find_all(self, name: str | Iterable[str] | None = None, **kwargs: str) -> ResultSet[PageElement]: ...

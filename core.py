@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -9,9 +11,6 @@ from typing import Callable
 from zoneinfo import ZoneInfo
 
 BEGINNING = datetime(2021, 11, 1, tzinfo=ZoneInfo("Europe/Amsterdam"))
-
-transactions = []
-matches = defaultdict(list)
 
 
 @dataclass
@@ -30,19 +29,19 @@ class Account:
     type: Type
     initial_balance: Decimal
     bank_name: str
-    bank_site: str
-    routing_number: str = None
-    description: str = None
-    interest_rate: Decimal = None
-    monthly_payment: Decimal = None
-    group: str = None
-    matcher: Callable[["Account", "Transaction", "Transaction.Line"], "Transaction"] = None
+    bank_site: str | None
+    routing_number: str | None = None
+    description: str | None = None
+    interest_rate: Decimal | None = None
+    monthly_payment: Decimal | None = None
+    group: str | None = None
+    matcher: Callable[["Account", "Transaction", "Transaction.Line"], "Transaction"] | None = None
     tax_base: Decimal = field(default_factory=lambda: Decimal(0))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.number}"
 
-    def complete(self):
+    def complete(self) -> None:
         if self.matcher:
             for match in list(chain.from_iterable(matches.values())):
                 matched_transaction, matched_line = match
@@ -123,52 +122,52 @@ class Transaction:
 
         account: Account
         amount: Decimal
-        category: Category = None
-        description: str = None
-        counter_account_number: str = None
-        counter_account: Account = None
-        ext_account_number: str = None
-        tax_year: int = None
+        category: Category | None = None
+        description: str | None = None
+        counter_account_number: str | None = None
+        counter_account: Account | None = None
+        ext_account_number: str | None = None
+        tax_year: int | None = None
 
-        def __str__(self):
+        def __str__(self) -> str:
             return f"{self.amount:8} {self.description or '':8.8}"
 
-        def merge(self, other: "Transaction"):
+        def merge(self, other: Transaction.Line) -> None:
             assert self.amount == -other.amount
             assert self.counter_account_number == other.get_ext_account_number()
             assert other.counter_account_number == self.get_ext_account_number()
             self.counter_account = other.account
             # TODO: should we merge descriptions?
 
-        def get_ext_account_number(self):
+        def get_ext_account_number(self) -> str:
             return self.ext_account_number or self.account.number
 
     date: datetime
-    payee: str
-    description: str
+    payee: str | None
+    description: str | None
     lines: list[Line]
     cleared: bool = True
-    number: int = None
+    number: int | None = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.date.strftime('%Y-%m-%d %H:%M:%S')} {self.payee:15.15} [{', '.join(map(str, self.lines)):100.100}]"
 
-    def merge(self, other):
+    def merge(self, other: Transaction) -> None:
         self.date = min(self.date, other.date)
         self.lines += other.lines
         if len(self.lines) == 1:
             self.payee = None
 
-    def complete(self, must_have=False):
+    def complete(self, must_have: bool = False) -> bool:
         if self.date < BEGINNING and not must_have:
             return False
         for line in list(self.lines):
             line.account.initial_balance -= line.amount
             if line.counter_account_number:
                 match_list = matches.get((line.counter_account_number, line.get_ext_account_number(), -line.amount), [])
-                close_matches = [(delta, match) for match in match_list if (delta := abs(match[0].date - self.date)) < timedelta(weeks=3)]
+                close_matches: list[tuple[timedelta, MatchCandidate]] = [(delta, match) for match in match_list if (delta := abs(match[0].date - self.date)) < timedelta(weeks=3)]
                 if close_matches:
-                    match = min(close_matches, key=lambda match: match[0])[1]
+                    match = min(close_matches, key=lambda match: match[0])[1]  # type: ignore
                     match_list.remove(match)
                     matched_transaction, matched_line = match
                     line.merge(matched_line)
@@ -179,8 +178,14 @@ class Transaction:
                     matches[(line.get_ext_account_number(), line.counter_account_number, line.amount)].append((self, line))
             if line.counter_account is None and line.category is None:
                 for rule in Transaction.Line.RULES.items():
-                    if re.match(rule[0], self.payee):
+                    if self.payee and re.match(rule[0], self.payee):
                         line.category = rule[1]
                         break
         transactions.append(self)
         return True
+
+
+transactions: list[Transaction] = []
+MatchKey = tuple[str, str, Decimal]
+MatchCandidate = tuple[Transaction, Transaction.Line]
+matches: dict[MatchKey, list[MatchCandidate]] = defaultdict(list)
