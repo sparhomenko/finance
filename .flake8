@@ -10,7 +10,6 @@ ignore =
 
   D,
   S101,
-  S105,
   S314,
   S405,
   WPS110,
@@ -20,7 +19,6 @@ ignore =
   WPS211,
   WPS213,
   WPS214,
-  WPS218,
   WPS220,
   WPS221,
   WPS223,
@@ -31,12 +29,8 @@ ignore =
   WPS237,
   WPS317,
   WPS336,
-  WPS426,
   WPS430,
   WPS431,
   WPS432,
   WPS440,
-  WPS508,
-  WPS601,
-  WPS615,
 inline-quotes = double

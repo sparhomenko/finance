@@ -340,8 +340,8 @@ class Document:
 
     def unparse_object(self, name: str, obj: Object) -> ElementTree.Element:
         result = ElementTree.Element(name, {"type": obj.__class__.__name__})
-        for name, value in obj_fields(obj).items():
-            if name == "id" or value is None:
+        for field_name, value in obj_fields(obj).items():
+            if field_name == "id" or value is None:
                 continue
             if isinstance(value, Document.TransactionType):
                 element = self.unparse_object("record", value)
@@ -385,7 +385,7 @@ class Document:
                     element.text = f"{value.__class__.__name__}:{value.id}"
                 else:
                     raise TypeError(type(value))
-            element.set("name", python_to_banktivity(name))
+            element.set("name", python_to_banktivity(field_name))
             result.append(element)
         return result
 

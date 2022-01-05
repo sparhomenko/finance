@@ -126,7 +126,7 @@ class Transaction:
         description: str | None = None
         counter_account_number: str | None = None
         counter_account: Account | None = None
-        ext_account_number: str | None = None
+        _ext_account_number: str | None = None
         tax_year: int | None = None
 
         def __str__(self) -> str:
@@ -134,13 +134,18 @@ class Transaction:
 
         def merge(self, other: Transaction.Line) -> None:
             assert self.amount == -other.amount
-            assert self.counter_account_number == other.get_ext_account_number()
-            assert other.counter_account_number == self.get_ext_account_number()
-            self.counter_account = other.account
+            assert self.counter_account_number == other.ext_account_number
+            assert other.counter_account_number == self.ext_account_number
+            self.counter_account = other.account  # noqa: WPS601 - https://github.com/wemake-services/wemake-python-styleguide/issues/1926
             # TODO: should we merge descriptions?
 
-        def get_ext_account_number(self) -> str:
-            return self.ext_account_number or self.account.number
+        @property
+        def ext_account_number(self) -> str:
+            return self._ext_account_number or self.account.number
+
+        @ext_account_number.setter
+        def ext_account_number(self, ext_account_number: str) -> None:
+            self._ext_account_number = ext_account_number  # noqa: WPS601 - https://github.com/wemake-services/wemake-python-styleguide/issues/1926
 
     date: datetime
     payee: str | None
@@ -164,7 +169,7 @@ class Transaction:
         for line in list(self.lines):
             line.account.initial_balance -= line.amount
             if line.counter_account_number:
-                match_list = matches.get((line.counter_account_number, line.get_ext_account_number(), -line.amount), [])
+                match_list = matches.get((line.counter_account_number, line.ext_account_number, -line.amount), [])
                 close_matches: list[tuple[timedelta, MatchCandidate]] = [(delta, match) for match in match_list if (delta := abs(match[0].date - self.date)) < timedelta(weeks=3)]
                 if close_matches:
                     match = min(close_matches, key=lambda match: match[0])[1]  # type: ignore
@@ -175,7 +180,7 @@ class Transaction:
                     self.merge(matched_transaction)
                     transactions.remove(matched_transaction)
                 else:
-                    matches[(line.get_ext_account_number(), line.counter_account_number, line.amount)].append((self, line))
+                    matches[(line.ext_account_number, line.counter_account_number, line.amount)].append((self, line))
             if line.counter_account is None and line.category is None:
                 for rule in Transaction.Line.RULES.items():
                     if self.payee and re.match(rule[0], self.payee):
