@@ -10,11 +10,28 @@ jobs:
       uses: actions/setup-python@v2.3.1
       with:
         python-version: v3.10.1  # renovate github-tags:python/cpython
+    - name: Cache Poetry
+      id: cache-poetry
+      uses: actions/cache@v2.1.7
+      with:
+        path: ${{ env.pythonLocation }}
+        key: poetry-${{ env.PYTHON_VERSION }}-v${{ env.POETRY_VERSION }}
+      env:
+        PYTHON_VERSION: v3.10.1  # renovate github-tags:python/cpython
+        POETRY_VERSION: 1.1.12  # renovate pypi:poetry
     - name: Setup Poetry
       uses: abatilo/actions-poetry@v2.1.4
+      if: steps.cache-poetry.outputs.cache-hit != 'true'
       with:
         poetry-version: 1.1.12  # renovate pypi:poetry
+    - name: Cache Dependencies
+      id: cache-deps
+      uses: actions/cache@v2.1.7
+      with:
+        path: ~/.cache/pypoetry
+        key: deps-${{ hashFiles('poetry.lock') }}
     - name: Setup Dependencies
+      if: steps.cache-deps.outputs.cache-hit != 'true'
       run: poetry install
     - name: Check types
       run: poetry run mypy .
