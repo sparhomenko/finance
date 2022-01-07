@@ -1,0 +1,33 @@
+name: setup
+description: Setup dependencies
+outputs:
+  changed:
+    description: Where dependencies have changed since the last run
+    value: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
+runs:
+  using: composite
+  steps:
+  - uses: actions/setup-python@v2.3.1
+    with:
+      python-version: v3.10.1  # renovate github-tags:python/cpython
+  - uses: actions/cache@v2.1.7
+    id: cache-poetry
+    with:
+      path: ${{ env.pythonLocation }}
+      key: poetry-${{ env.PYTHON_VERSION }}-v${{ env.POETRY_VERSION }}
+    env:
+      PYTHON_VERSION: v3.10.1  # renovate github-tags:python/cpython
+      POETRY_VERSION: 1.1.12  # renovate pypi:poetry
+  - uses: abatilo/actions-poetry@v2.1.4
+    if: steps.cache-poetry.outputs.cache-hit != 'true'
+    with:
+      poetry-version: 1.1.12  # renovate pypi:poetry
+  - uses: actions/cache@v2.1.7
+    id: cache-deps
+    with:
+      path: ~/.cache/pypoetry
+      key: deps-${{ hashFiles('poetry.lock') }}
+  - run: poetry install --no-root
+    if: steps.cache-deps.outputs.cache-hit != 'true'
+    shell: bash
+  

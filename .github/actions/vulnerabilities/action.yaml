@@ -1,0 +1,7 @@
+name: vulnerabilities
+description: Scan dependencies for vulnerabilities
+runs:
+  using: composite
+  steps:
+  - run: poetry run pip-audit --strict
+    shell: bash
