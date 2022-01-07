@@ -4,8 +4,8 @@ from decimal import Decimal
 import requests
 from requests.auth import HTTPBasicAuth
 
-from core import BEGINNING, Account, Transaction
-from typesafe import JSON
+from finance.core import BEGINNING, Account, Transaction
+from finance.typesafe import JSON
 
 
 class Loader:

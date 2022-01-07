@@ -26,11 +26,11 @@ from inflection import camelize, underscore
 from more_itertools import one
 from requests import post, request
 
-from core import BEGINNING
-from core import Account as CAccount
-from core import Category as CCategory
-from core import Transaction as CTransaction
-from typesafe import JSON, JSONType, not_none, obj_fields
+from finance.core import BEGINNING
+from finance.core import Account as CAccount
+from finance.core import Category as CCategory
+from finance.core import Transaction as CTransaction
+from finance.typesafe import JSON, JSONType, not_none, obj_fields
 
 KEY_SIZE = 16
 

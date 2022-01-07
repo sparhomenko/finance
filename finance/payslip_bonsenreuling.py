@@ -6,8 +6,8 @@ from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup, element
 from requests import Session
 
-from core import BEGINNING, Account, Category, Transaction
-from typesafe import JSON
+from finance.core import BEGINNING, Account, Category, Transaction
+from finance.typesafe import JSON
 
 
 class Loader:

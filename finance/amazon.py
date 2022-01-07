@@ -11,7 +11,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 
-from core import Account, Transaction
+from finance.core import Account, Transaction
 
 
 class Loader:

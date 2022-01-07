@@ -1,8 +1,8 @@
 from decimal import Decimal
 from typing import Callable
 
-from core import Account, Transaction, transactions
-from woz import Property
+from finance.core import Account, Transaction, transactions
+from finance.woz import Property
 
 
 class Loader:

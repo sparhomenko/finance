@@ -6,8 +6,8 @@ from more_itertools import last, one
 from requests import Session
 from requests.models import Response
 
-from core import Account, Transaction
-from typesafe import JSON
+from finance.core import Account, Transaction
+from finance.typesafe import JSON
 
 
 class Property:

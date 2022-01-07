@@ -9,8 +9,8 @@ from more_itertools import one
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LAParams, LTTextContainer
 
-from core import BEGINNING, Account, Category, Transaction
-from typesafe import re_groups
+from finance.core import BEGINNING, Account, Category, Transaction
+from finance.typesafe import re_groups
 
 
 class Loader:

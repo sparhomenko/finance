@@ -18,8 +18,8 @@ from cryptography.hazmat.primitives.padding import PKCS7, PaddingContext
 from more_itertools import distribute, interleave
 from requests import Request, Session, post
 
-from core import Account, Category, Transaction
-from typesafe import JSON, not_none, re_groups
+from finance.core import Account, Category, Transaction
+from finance.typesafe import JSON, not_none, re_groups
 
 NO_IV = bytearray(16)
 SESSION_COUNTER = 500

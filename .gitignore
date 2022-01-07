@@ -1,7 +1,6 @@
 .DS_Store
 /.vscode/
 __pycache__/
-/.pytest_cache/
 /.coverage
-/sandbox.py
+__main__.py
 /keys/
