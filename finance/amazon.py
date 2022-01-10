@@ -44,10 +44,10 @@ class Loader:
         account = Account("amazon", "Amazon", Account.Type.CURRENT, Decimal(0), "Amazon", "https://amazon.de")
         orders = []
         for order_element in self.browser.find_elements(By.XPATH, "//*[contains(@class, ' order ')]"):
-            values = order_element.find_elements(By.XPATH, ".//span[contains(@class, ' value')]")
-            date = datetime.strptime(values[0].text, "%d %B %Y").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
-            amount = self.to_amount(values[1].text)
-            order_id = values[2].text
+            elements = order_element.find_elements(By.XPATH, ".//span[contains(@class, ' value')]")
+            date = datetime.strptime(elements[0].text, "%d %B %Y").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
+            amount = self.to_amount(elements[1].text)
+            order_id = elements[2].text
             orders.append((date, amount, order_id))
 
         group_by_key: Callable[[tuple[datetime, Decimal, str]], datetime] = lambda order: order[0]

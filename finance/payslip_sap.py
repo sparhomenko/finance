@@ -32,8 +32,8 @@ class Loader:
 
     def load(self) -> list[Account]:
         account = Account(self.number, self.name, Account.Type.LIABILITY, Decimal(0), self.name, None)
-        for file in sorted(listdir(self.path)):
-            match = re.match(r"\d+_(\d{4})_(\d{2})_Payslip.pdf", file)
+        for payslip_file in sorted(listdir(self.path)):
+            match = re.match(r"\d+_(\d{4})_(\d{2})_Payslip.pdf", payslip_file)
             if not match:
                 continue
             groups = re_groups(match)
@@ -46,7 +46,7 @@ class Loader:
             table = {}
             cumulative = {}
             section = Loader.Section.HEADER
-            page = one(extract_pages(f"{self.path}/{file}", laparams=LAParams(line_margin=-1)))
+            page = one(extract_pages(f"{self.path}/{payslip_file}", laparams=LAParams(line_margin=-1)))
             for element in page:
                 if isinstance(element, LTTextContainer):
                     text = element.get_text().removesuffix("\n")

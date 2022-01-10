@@ -34,27 +34,27 @@ class Loader:
             start = end
 
             for entry in entries:
-                info = entry["transaction_info"]
-                assert info["transaction_amount"]["currency_code"].str == "EUR"
-                date = info["transaction_initiation_date"].strptime("%Y-%m-%dT%H:%M:%S%z").astimezone(BEGINNING.tzinfo)
-                amount = info["transaction_amount"]["value"].decimal
-                top_up = info["transaction_event_code"].str in {"T0300", "T0700"}
-                transaction = transactions.setdefault(info["paypal_reference_id" if top_up else "transaction_id"].str, Transaction(date, None, None, []))
+                transaction_info = entry["transaction_info"]
+                assert transaction_info["transaction_amount"]["currency_code"].str == "EUR"
+                date = transaction_info["transaction_initiation_date"].strptime("%Y-%m-%dT%H:%M:%S%z").astimezone(BEGINNING.tzinfo)
+                amount = transaction_info["transaction_amount"]["value"].decimal
+                top_up = transaction_info["transaction_event_code"].str in {"T0300", "T0700"}
+                transaction = transactions.setdefault(transaction_info["paypal_reference_id" if top_up else "transaction_id"].str, Transaction(date, None, None, []))
                 assert transaction.date == date
                 if top_up:
                     transaction.lines.insert(0, Transaction.Line(account, amount, counter_account_number="*"))
                 else:
                     transaction.payee = entry["payer_info"]["payer_name"]["alternate_full_name"].str
-                    if items := entry["cart_info"].get("item_details"):
+                    if lines := entry["cart_info"].get("item_details"):
                         accumulated = Decimal(0)
-                        salex_tax = -info["sales_tax_amount"]["value"].decimal if "sales_tax_amount" in info else Decimal(0)
-                        shipping = -info["shipping_amount"]["value"].decimal if "shipping_amount" in info else Decimal(0)
+                        salex_tax = -transaction_info["sales_tax_amount"]["value"].decimal if "sales_tax_amount" in transaction_info else Decimal(0)
+                        shipping = -transaction_info["shipping_amount"]["value"].decimal if "shipping_amount" in transaction_info else Decimal(0)
                         fees = salex_tax + shipping
                         fee_coefficient = 1 + fees / (amount - fees)
-                        for item in items:
-                            item_amount = round(-item["item_amount"]["value"].decimal * fee_coefficient, 2)
+                        for line in lines:
+                            item_amount = round(-line["item_amount"]["value"].decimal * fee_coefficient, 2)
                             accumulated += item_amount
-                            description = item.get("item_name")
+                            description = line.get("item_name")
                             transaction.lines.append(Transaction.Line(account, item_amount, None, description.str if description else None))
                         assert accumulated == amount
                     else:

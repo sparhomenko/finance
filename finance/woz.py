@@ -15,14 +15,14 @@ class Property:
         self.query = query
         self.session = Session()
         self.api("")
-        doc = one(JSON.response(self.api("api/geocoder/v3/suggest", params={"query": query}))["docs"])
-        address = JSON.response(self.api("api/geocoder/v3/lookup", params={"id": doc["id"].str}))
+        doc = one(JSON.response(self.api("api/geocoder/v3/suggest", query={"query": query}))["docs"])
+        address = JSON.response(self.api("api/geocoder/v3/lookup", query={"id": doc["id"].str}))
         self.id = int(address["adresseerbaarobject_id"].str)
-        self.value: dict[int, Decimal] = {}
+        self.valuation: dict[int, Decimal] = {}
 
-    def api(self, endpoint: str, params: dict[str, str] | None = None, data: str | None = None) -> Response:
-        method = "POST" if data else "GET"
-        response = self.session.request(method, f"https://www.wozwaardeloket.nl/{endpoint}", params=params, data=data)
+    def api(self, endpoint: str, query: dict[str, str] | None = None, body: str | None = None) -> Response:
+        method = "POST" if body else "GET"
+        response = self.session.request(method, f"https://www.wozwaardeloket.nl/{endpoint}", params=query, data=body)
         response.raise_for_status()
         return response
 
@@ -46,13 +46,13 @@ class Property:
                 </ogc:Filter>
             </wfs:Query>
         </wfs:GetFeature>"""
-        for feature in JSON.response(self.api("woz-proxy/wozloket", data=request))["features"]:
+        for feature in JSON.response(self.api("woz-proxy/wozloket", body=request))["features"]:
             date = feature["properties"]["wobj_wrd_ingangsdatum"].strptime("%d-%m-%Y").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
-            self.value[date.year - 1] = feature["properties"]["wobj_wrd_woz_waarde"].decimal
-        self.value = dict(sorted(self.value.items()))
-        account = Account(str(self.id), self.query, Account.Type.PROPERTY, last(self.value.values()), "WOZ value", "https://www.wozwaardeloket.nl")
-        last_value = Decimal(0)
-        for year, value in self.value.items():
-            Transaction(datetime(year, 1, 1, tzinfo=ZoneInfo("Europe/Amsterdam")), "WOZ value", None, [Transaction.Line(account, value - last_value)]).complete(must_have=True)
-            last_value = value
+            self.valuation[date.year - 1] = feature["properties"]["wobj_wrd_woz_waarde"].decimal
+        self.valuation = dict(sorted(self.valuation.items()))
+        account = Account(str(self.id), self.query, Account.Type.PROPERTY, last(self.valuation.values()), "WOZ value", "https://www.wozwaardeloket.nl")
+        last_valuation = Decimal(0)
+        for year, valuation in self.valuation.items():
+            Transaction(datetime(year, 1, 1, tzinfo=ZoneInfo("Europe/Amsterdam")), "WOZ value", None, [Transaction.Line(account, valuation - last_valuation)]).complete(must_have=True)
+            last_valuation = valuation
         return [account]

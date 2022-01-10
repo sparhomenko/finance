@@ -10,7 +10,7 @@ from enum import Enum, unique
 from io import BytesIO
 from os import environ
 from secrets import token_bytes
-from typing import Callable, cast
+from typing import Callable, Generic, TypeVar, cast
 from urllib.parse import ParseResult, urlparse, urlunparse
 from uuid import uuid4
 from xml.etree import ElementTree
@@ -30,9 +30,17 @@ from finance.core import BEGINNING
 from finance.core import Account as CAccount
 from finance.core import Category as CCategory
 from finance.core import Transaction as CTransaction
-from finance.typesafe import JSON, JSONType, not_none, obj_fields
+from finance.typesafe import JSON, JSONType, attributes, not_none
 
 KEY_SIZE = 16
+ObjectType = TypeVar("ObjectType", covariant=True)
+
+
+@dataclass
+class Converter(Generic[ObjectType]):
+    obj_type: type[ObjectType]
+    parse: Callable[[str], ObjectType]
+    unparse: Callable[[ObjectType], str] = str
 
 
 class Document:
@@ -208,7 +216,17 @@ class Document:
         filter_func: Callable[[JSON], bool] = lambda doc: doc["name"].str == name
         doc = one(filter(filter_func, self.api("documents")["documents"]))
         self.key = self.decrypt_key(password, doc["keyData"].str)
-        self.url += f"/documents/{doc['id']}"
+        self.url = f"{self.url}/documents/{doc['id']}"
+        self.converters: dict[str, Converter[object]] = {
+            "string": Converter(str, lambda _: _),
+            "bool": Converter(bool, lambda text: text == "yes", lambda attr: "yes" if attr else "no"),
+            "int": Converter(int, int),
+            "decimal": Converter(Decimal, Decimal),
+            "date": Converter[datetime](datetime, lambda text: datetime.strptime(text, "%Y-%m-%dT%H:%M:%S%z"), lambda attr: attr.isoformat(timespec="seconds")),
+            "url": Converter[ParseResult](ParseResult, urlparse, urlunparse),
+            "data": Converter(Document.LoanInfo.Recurrence, lambda text: archiver.unarchive(b64decode(text)), lambda attr: b64encode(archiver.archive(attr)).decode()),
+            "reference": Converter[Document.Entity](Document.Entity, lambda text: self.entities[cast(tuple[str, str], tuple(text.split(":")))], lambda attr: f"{attr.__class__.__name__}:{attr.id}"),
+        }
 
     def login(self, login: str, password: str) -> str:
         headers = {"Content-Type": "application/xml"}
@@ -224,18 +242,18 @@ class Document:
         assert isinstance(token, str)
         return token
 
-    def decrypt_key(self, password: str, data: str) -> bytes:
-        buf = BytesIO(b64decode(data))
+    def decrypt_key(self, password: str, encrypted: str) -> bytes:
+        buf = BytesIO(b64decode(encrypted))
         assert buf.read(2) == b"\x01\x01"
         hashed = PBKDF2HMAC(hashes.SHA1(), KEY_SIZE, buf.read(8), 1701).derive(password.encode())  # noqa: S303 - have to follow Banktivity's choice of SHA-1
         key = BytesIO(self.decrypt(buf, hashed))
         assert key.read(4) == b"Lisa"
         return key.read()
 
-    def api(self, endpoint: str, params: dict[str, str] | None = None, data: dict[str, str] | None = None, json: JSON | None = None) -> JSON:
-        method = "POST" if data or json else "GET"
+    def api(self, endpoint: str, query: dict[str, str] | None = None, body: dict[str, str] | None = None, json: JSON | None = None) -> JSON:
+        method = "POST" if body or json else "GET"
         headers = {"IGG-Authorization": self.token}
-        response = request(method, f"{self.url}/{endpoint}", headers=headers, params=params, data=data, json=json.body if json else None)
+        response = request(method, f"{self.url}/{endpoint}", headers=headers, params=query, data=body, json=json.body if json else None)
         response.raise_for_status()
         return JSON.response(response)
 
@@ -247,55 +265,37 @@ class Document:
         encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
         return iv + encrypted_data
 
-    def decrypt(self, data: BytesIO, key: bytes | None = None) -> bytes:
-        decryptor: CipherContext = Cipher(algorithms.AES(key or self.key), modes.CBC(data.read(KEY_SIZE))).decryptor()
-        decrypted_data = decryptor.update(data.read()) + decryptor.finalize()
+    def decrypt(self, encrypted: BytesIO, key: bytes | None = None) -> bytes:
+        decryptor: CipherContext = Cipher(algorithms.AES(key or self.key), modes.CBC(encrypted.read(KEY_SIZE))).decryptor()
+        decrypted_data = decryptor.update(encrypted.read()) + decryptor.finalize()
         unpadder = PKCS7(KEY_SIZE * 8).unpadder()
         return unpadder.update(decrypted_data) + unpadder.finalize()
 
     def parse_object(self, element: ElementTree.Element) -> Object:
-        data: dict[str, object] = {"id": element.get("id")}
-        entity_type = cast(type, obj_fields(self.__class__)[not_none(element.get("type"))])
+        elements: dict[ElementTree.Element, object] = {}
+        entity_type = cast(type, attributes(self.__class__)[not_none(element.get("type"))])
         assert issubclass(entity_type, Document.Object)
-        for entity_field in element.findall("field"):
-            value: object | None
-            if entity_field.get("null") or entity_field.text is None:
-                value = None
+        for field_element in element.findall("field"):
+            attr: object | None
+            if field_element.get("null") or field_element.text is None or field_element.text.endswith("(null)"):
+                attr = None
             else:
-                if enum_type_name := entity_field.get("enum"):
-                    if enum_type := cast(type, obj_fields(entity_type).get(enum_type_name)):
+                if enum_type_name := field_element.get("enum"):
+                    if enum_type := cast(type, attributes(entity_type).get(enum_type_name)):
                         assert issubclass(enum_type, Enum)
-                        value = enum_type(entity_field.text)
+                        attr = enum_type(field_element.text)
                     else:
-                        value = entity_field.text
+                        attr = field_element.text
                 else:
-                    field_type = not_none(entity_field.get("type"))
-                    if field_type == "string":
-                        value = entity_field.text
-                    elif field_type == "bool":
-                        value = entity_field.text == "yes"
-                    elif field_type == "int":
-                        value = int(entity_field.text)
-                    elif field_type == "decimal":
-                        value = Decimal(entity_field.text)
-                    elif field_type == "date":
-                        value = datetime.strptime(entity_field.text, "%Y-%m-%dT%H:%M:%S%z")
-                    elif field_type == "url":
-                        value = urlparse(entity_field.text)
-                    elif field_type == "reference":
-                        parts = cast(tuple[str, str], tuple(entity_field.text.split(":")))
-                        value = None if parts[1] == "(null)" else self.entities[parts]
-                    elif field_type == "data":
-                        value = archiver.unarchive(b64decode(entity_field.text))
-                    else:
-                        raise TypeError(field_type)
-            data[not_none(entity_field.get("name"))] = value
-        for record in element.findall("record"):
-            data[not_none(record.get("name"))] = self.parse_object(record)
-        for collection in element.findall("collection"):
-            data[not_none(collection.get("name"))] = list(map(self.parse_object, collection.findall("record")))
-        data = {banktivity_to_python(name): value for name, value in data.items()}
-        return dacite.core.from_dict(entity_type, data, dacite.config.Config(check_types=False))
+                    attr = self.converters[not_none(field_element.get("type"))].parse(field_element.text)
+            elements[field_element] = attr
+        for record_element in element.findall("record"):
+            elements[record_element] = self.parse_object(record_element)
+        for collection_element in element.findall("collection"):
+            elements[collection_element] = list(map(self.parse_object, collection_element.findall("record")))
+        attrs = {banktivity_to_python(not_none(element.get("name"))): attr for element, attr in elements.items()}
+        attrs["id"] = element.get("id")
+        return dacite.core.from_dict(entity_type, attrs, dacite.config.Config(check_types=False))
 
     def parse_entity(self, entity_json: JSON) -> Entity:
         entity_xml_str = gzip.decompress(self.decrypt(BytesIO(b64decode(entity_json["data"].str))))
@@ -310,11 +310,11 @@ class Document:
         self.groups: dict[str, Document.Group] = {}
         self.accounts = {}
         for entity_type in ("Currency", "Account", "LoanInfo", "Group", "TransactionTypeV2", "Transaction"):
-            entities = self.api("entities", params={"type": entity_type}).get("entities")
+            entities = self.api("entities", query={"type": entity_type}).get("entities")
             if entities:
                 for entity_json in entities:
                     entity = self.parse_entity(entity_json)
-                    self.entities[(entity_type, entity.id)] = entity
+                    self.entities[entity_type, entity.id] = entity
                     if isinstance(entity, Document.Currency):
                         self.currencies[not_none(entity.code)] = entity
                     elif isinstance(entity, Document.Group):
@@ -331,63 +331,35 @@ class Document:
         self.deleted: list[Document.Entity] = []
 
     def transaction_type(self, name: str) -> TransactionType:
-        entity = self.entities[("TransactionTypeV2", f"XXX-{name}-ID")]
+        entity = self.entities["TransactionTypeV2", f"XXX-{name}-ID"]
         assert isinstance(entity, Document.TransactionTypeV2)
         return Document.TransactionType(
             base_type=Document.TransactionType.IGGCSyncAccountingTransactionBaseType[name.upper()],
             transaction_type=entity,
         )
 
-    def unparse_object(self, name: str, obj: Object) -> ElementTree.Element:
-        result = ElementTree.Element(name, {"type": obj.__class__.__name__})
-        for field_name, value in obj_fields(obj).items():
-            if field_name == "id" or value is None:
+    def unparse_object(self, name: str, banktivity_object: Object) -> ElementTree.Element:
+        root_element = ElementTree.Element(name, {"type": banktivity_object.__class__.__name__})
+        for attr_name, attr_value in attributes(banktivity_object).items():
+            if attr_name == "id" or attr_value is None:
                 continue
-            if isinstance(value, Document.TransactionType):
-                element = self.unparse_object("record", value)
-            elif isinstance(value, list):
+            if isinstance(attr_value, Document.TransactionType):
+                element = self.unparse_object("record", attr_value)
+            elif isinstance(attr_value, list):
                 element = ElementTree.Element("collection", {"type": "array"})
-                for item in value:
-                    subelement = self.unparse_object("record", item)
+                for record in attr_value:
+                    subelement = self.unparse_object("record", record)
                     subelement.set("name", "element")
                     element.append(subelement)
+            elif isinstance(attr_value, Enum):
+                element = ElementTree.Element("field", {"enum": attr_value.__class__.__name__})
             else:
-                element = ElementTree.Element("field")
-                if isinstance(value, str):
-                    element.set("type", "string")
-                    element.text = value
-                elif isinstance(value, bool):
-                    element.set("type", "bool")
-                    element.text = "yes" if value else "no"
-                elif isinstance(value, int):
-                    element.set("type", "int")
-                    element.text = str(value)
-                elif isinstance(value, Decimal):
-                    element.set("type", "decimal")
-                    element.text = str(value)
-                elif isinstance(value, datetime):
-                    assert value.tzinfo
-                    element.set("type", "date")
-                    element.text = value.isoformat(timespec="seconds")
-                elif isinstance(value, ParseResult):
-                    element.set("type", "url")
-                    element.text = urlunparse(value)
-                elif isinstance(value, Document.TransactionType):
-                    element = self.unparse_object("record", value)
-                elif isinstance(value, Enum):
-                    element.set("enum", value.__class__.__name__)
-                    element.text = value.value
-                elif isinstance(value, Document.LoanInfo.Recurrence):
-                    element.set("type", "data")
-                    element.text = b64encode(archiver.archive(value)).decode()
-                elif isinstance(value, Document.Entity):
-                    element.set("type", "reference")
-                    element.text = f"{value.__class__.__name__}:{value.id}"
-                else:
-                    raise TypeError(type(value))
-            element.set("name", python_to_banktivity(field_name))
-            result.append(element)
-        return result
+                element_type, converter = next(converter for converter in self.converters.items() if isinstance(attr_value, converter[1].obj_type))
+                element = ElementTree.Element("field", {"type": element_type})
+                element.text = converter.unparse(attr_value)
+            element.set("name", python_to_banktivity(attr_name))
+            root_element.append(element)
+        return root_element
 
     def unparse_entity(self, entity: Entity) -> JSONType:
         element = self.unparse_object("entity", entity)

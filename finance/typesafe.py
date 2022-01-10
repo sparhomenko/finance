@@ -13,16 +13,16 @@ from requests.models import Response
 _AnyType = TypeVar("_AnyType")
 
 
-def not_none(value: _AnyType | None) -> _AnyType:
-    assert value is not None
-    return value
+def not_none(optional: _AnyType | None) -> _AnyType:
+    assert optional is not None
+    return optional
 
 
 def re_groups(match: re.Match[str] | None) -> tuple[str, ...]:
     return cast(tuple[str, ...], not_none(match).groups())
 
 
-def obj_fields(typ: object) -> dict[str, object]:
+def attributes(typ: object) -> dict[str, object]:
     return cast(dict[str, object], typ.__dict__)
 
 
@@ -90,8 +90,8 @@ class JSON:
 
     def _as_array(self) -> list[JSON]:
         assert isinstance(self.body, list)
-        return [JSON(value) for value in self.body]
+        return [JSON(entry) for entry in self.body]
 
     def _as_object(self) -> dict[string, JSON]:
         assert isinstance(self.body, dict)
-        return {key: JSON(value) for key, value in cast(dict[str, JSONType], self.body).items()}
+        return {key: JSON(child_value) for key, child_value in cast(dict[str, JSONType], self.body).items()}

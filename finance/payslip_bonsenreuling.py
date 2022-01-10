@@ -27,17 +27,17 @@ class Loader:
         assert "formsauth" in self.session.cookies
 
     def parse_headers(self, table: element.Tag) -> dict[str, str | None]:
-        result = {}
+        headers = {}
         filter_func: Callable[[element.PageElement], str] = lambda cell: cell.text.strip()
         cells = list(filter(filter_func, table.find_all(("th", "td"))))
         for index in range(0, len(cells), 2):
             title = cells[index].text.rstrip(":")
-            value = cells[index + 1].text.strip()
-            result[title] = None if value == "-" else value
-        return result
+            header_value = cells[index + 1].text.strip()
+            headers[title] = None if header_value == "-" else header_value
+        return headers
 
     def parse_rows(self, table: element.Tag) -> dict[str, dict[str, Decimal]]:
-        result = {}
+        rows = {}
         headers = []
         for th in table.find_all("th"):
             headers.append(th.text)
@@ -52,8 +52,8 @@ class Loader:
                         text = tds[index].text
                         if text:
                             row[header] = self.to_decimal(text)
-                    result[title] = row
-        return result
+                    rows[title] = row
+        return rows
 
     def to_decimal(self, text: str) -> Decimal:
         return Decimal(text.replace(".", "").replace(",", "."))
@@ -68,8 +68,8 @@ class Loader:
                 month = 1
                 year += 1
             period = f"{year}-{month}-M"
-            params: dict[str, str | int] = {"action": "LoadPopup", "id": 292, "args": period}
-            response = self.session.get("https://bonsenreuling.nmbrs.nl/handlers/Popups/PopupHandler.ashx", params=params)
+            query: dict[str, str | int] = {"action": "LoadPopup", "id": 292, "args": period}
+            response = self.session.get("https://bonsenreuling.nmbrs.nl/handlers/Popups/PopupHandler.ashx", params=query)
             assert response.headers["Content-Type"] == "text/plain; charset=utf-8"
 
             html = BeautifulSoup(JSON.response(response)["content"].str, "html.parser")
@@ -77,7 +77,7 @@ class Loader:
             if not content_element:
                 break
             assert isinstance(content_element[1], element.Tag)
-            content = self.parse_rows(content_element[1])
+            table = self.parse_rows(content_element[1])
             reservation_element = html.find(class_="tblPayslipResContent")
             assert isinstance(reservation_element, element.Tag)
             reservation = self.parse_rows(reservation_element)
@@ -85,12 +85,12 @@ class Loader:
             iban_element = html.find(style="background-color:#ccc;")
             assert iban_element
             iban = iban_element.text.removeprefix("Account number IBAN: ")
-            salary = content["Gross Salary"]["Payment"]
-            pension = -content["Deduction Pension premium"]["Retention"]
-            holiday_payment = content.get("Holiday pay", {}).get("Payment", 0)
-            payment = content["Net payment"]["Payment"]
+            salary = table["Gross Salary"]["Payment"]
+            pension = -table["Deduction Pension premium"]["Retention"]
+            holiday_payment = table.get("Holiday pay", {}).get("Payment", 0)
+            payment = table["Net payment"]["Payment"]
             holiday = reservation["Holiday pay"]["Res"]
-            tax = -content["Wage tax Table"]["Retention"] - content.get("Wage tax BT", {}).get("Retention", 0)
+            tax = -table["Wage tax Table"]["Retention"] - table.get("Wage tax BT", {}).get("Retention", 0)
 
             assert payment == salary + holiday_payment + pension + tax
 

@@ -1,34 +1,17 @@
 [flake8]
 max-line-length = 200
 ignore =
+  D,
   E203, W503,  # https://black.readthedocs.io/en/stable/faq.html#why-are-flake8-s-e203-and-w503-violated
+  S101,
+  S314,
+  S405,
   WPS115,  # https://github.com/wemake-services/wemake-python-styleguide/issues/750
+  WPS2,
   WPS305,
   WPS306,
   WPS332,  # WalrusViolation - won't ignore new language feature because of styleguide's opinion of its readability
   WPS414,
-
-  D,
-  S101,
-  S314,
-  S405,
-  WPS110,
-  WPS201,
-  WPS204,
-  WPS210,
-  WPS211,
-  WPS213,
-  WPS214,
-  WPS220,
-  WPS221,
-  WPS223,
-  WPS226,
-  WPS230,
-  WPS231,
-  WPS232,
-  WPS237,
-  WPS317,
-  WPS336,
   WPS430,
   WPS431,
   WPS432,

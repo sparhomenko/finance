@@ -113,8 +113,8 @@ class Profile:
         agreement_id = self.auth_api("getSubscriptions", "getSubscriptionsResponseEnvelope")["subscriptions"][0]["agreementId"].str
         return self.auth_api("api/access-token-v2", "accessTokens", {"clientId": CLIENT_ID}, proxy=True)[agreement_id]["accessToken"].str
 
-    def split(self, obj: bytes, index: int) -> tuple[bytes, bytes]:
-        return (obj[:index], obj[index:])
+    def split(self, bytes_data: bytes, index: int) -> tuple[bytes, bytes]:
+        return (bytes_data[:index], bytes_data[index:])
 
     def encrypt(self, key: bytes, plaintext: str, iv: bytes = NO_IV) -> bytes:
         padder: PaddingContext = PKCS7(128).padder()
@@ -128,34 +128,34 @@ class Profile:
         unpadder: PaddingContext = PKCS7(128).unpadder()
         return unpadder.update(decrypted_data) + unpadder.finalize()
 
-    def hash(self, *values: bytes) -> bytes:
+    def hash(self, *values_to_hash: bytes) -> bytes:
         digest = hashes.Hash(hashes.SHA256())
-        for value in values:
-            digest.update(value)
+        for value_to_hash in values_to_hash:
+            digest.update(value_to_hash)
         return digest.finalize()
 
-    def b64(self, data: bytes) -> str:
-        return b64encode(data).decode()
+    def b64(self, bytes_to_encode: bytes) -> str:
+        return b64encode(bytes_to_encode).decode()
 
     def proxy_api(self, path: str, query: str | None) -> JSON:
         body = JSON({"method": "GET", "path": path, "query": query}).dumps().replace("/", r"\/")
         iv = token_bytes(16)
-        data = self.encrypt(self.proxy_key, body, iv) + iv
+        encrypted = self.encrypt(self.proxy_key, body, iv) + iv
         hmac = HMAC(self.hmac_key, hashes.SHA512())
-        hmac.update(data)
+        hmac.update(encrypted)
         hashed = hmac.finalize()
         headers = {"Authorization": f"Bearer {self.access_token}"}
-        response = post("https://api.mobile.ing.nl/proxy", data + hashed, headers=headers)
+        response = post("https://api.mobile.ing.nl/proxy", encrypted + hashed, headers=headers)
         response.raise_for_status()
-        data, iv = self.split(response.content[:-64], -16)
-        json_body = JSON.loads(self.decrypt(self.proxy_key, data, iv))
+        encrypted, iv = self.split(response.content[:-64], -16)
+        json_body = JSON.loads(self.decrypt(self.proxy_key, encrypted, iv))
         if json_body["status"].int not in range(200, 400):
             raise ValueError(body)
         return JSON.loads(b64decode(json_body["content"].str))
 
-    def auth_api(self, endpoint: str, envelope_key: str, params: dict[str, str] | None = None, proxy: bool = False, json: JSON | None = None) -> JSON:
+    def auth_api(self, endpoint: str, envelope_key: str, query: dict[str, str] | None = None, proxy: bool = False, json: JSON | None = None) -> JSON:
         method = "POST" if json else "GET"
-        request = self.session.prepare_request(Request(method, f"https://services.ing.nl/mb/authentication/{endpoint}", params=params, json=json.body if json else None))
+        request = self.session.prepare_request(Request(method, f"https://services.ing.nl/mb/authentication/{endpoint}", params=query, json=json.body if json else None))
         if proxy:
             parsed = urlparse(not_none(request.url))
             response = self.proxy_api(parsed.path, parsed.query)
@@ -217,21 +217,21 @@ class Profile:
                 if response is None:
                     break
                 next_link = (response, "next")
-                for data in response["transactions"]:
-                    subject_lines = data.get("subjectLines")
+                for json in response["transactions"]:
+                    subject_lines = json.get("subjectLines")
                     transaction = Transaction(
-                        data["executionDate"].strptime("%Y-%m-%d").replace(tzinfo=ZoneInfo("Europe/Amsterdam")),
-                        data["subject"].str,
-                        " ".join([line.str for line in subject_lines]) if subject_lines else None,
-                        [Transaction.Line(account, data["amount"]["value"].decimal)],
-                        not data.get("reservation"),
+                        json["executionDate"].strptime("%Y-%m-%d").replace(tzinfo=ZoneInfo("Europe/Amsterdam")),
+                        json["subject"].str,
+                        " ".join(line.str for line in subject_lines) if subject_lines else None,
+                        [Transaction.Line(account, json["amount"]["value"].decimal)],
+                        not json.get("reservation"),
                     )
-                    if "counterAccount" in data and data["counterAccount"]["accountNumber"]["type"].str == "IBAN":
-                        transaction.lines[0].counter_account_number = data["counterAccount"]["accountNumber"]["value"].str
-                    self.beautify_card_payment(data, transaction)
-                    self.beautify_omschrijving(data, transaction)
-                    self.beautify_credit_card(data, transaction)
-                    self.beautify_aflossing(agreement, data, transaction)
+                    if "counterAccount" in json and json["counterAccount"]["accountNumber"]["type"].str == "IBAN":
+                        transaction.lines[0].counter_account_number = json["counterAccount"]["accountNumber"]["value"].str
+                    self.beautify_card_payment(json, transaction)
+                    self.beautify_omschrijving(json, transaction)
+                    self.beautify_credit_card(json, transaction)
+                    self.beautify_aflossing(agreement, json, transaction)
                     self.beautify_creditcard_incasso(transaction)
                     self.beautify_ing_betaalverzoek(transaction)
                     self.beautify_hypotheken(transaction)
@@ -247,10 +247,10 @@ class Profile:
                         more = False
         return accounts
 
-    def beautify_card_payment(self, data: JSON, transaction: Transaction) -> None:
-        if data["type"]["id"].str == "BA":
+    def beautify_card_payment(self, json: JSON, transaction: Transaction) -> None:
+        if json["type"]["id"].str == "BA":
             transaction.lines[0].description = transaction.description
-            lines = data["subjectLines"]
+            lines = json["subjectLines"]
             line = lines[1].str
             line = not_none(after_prefix(line, "Pasvolgnr: "))
             card, date = line.split(" ", 1)
@@ -258,12 +258,12 @@ class Profile:
             transaction.date = datetime.strptime(date, "%d-%m-%Y %H:%M").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
             transaction.description = lines[2].str
 
-    def beautify_omschrijving(self, data: JSON, transaction: Transaction) -> None:
-        if data["type"]["id"].str in {"IC", "OV", "ID", "GT"}:
+    def beautify_omschrijving(self, json: JSON, transaction: Transaction) -> None:
+        if json["type"]["id"].str in {"IC", "OV", "ID", "GT"}:
             transaction.lines[0].description = transaction.description
             transaction.description = ""
             decription_goes_on = False
-            for line_json in data["subjectLines"]:
+            for line_json in json["subjectLines"]:
                 line = line_json.str
                 if suffix := after_prefix(line, "Omschrijving: "):
                     transaction.description = suffix.rstrip()
@@ -273,23 +273,23 @@ class Profile:
                 elif date_str := after_prefix(line, "Datum/Tijd: "):
                     transaction.date = datetime.strptime(date_str, "%d-%m-%Y %H:%M:%S").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
                 elif decription_goes_on:
-                    transaction.description += f" {line.rstrip()}"
+                    transaction.description = f"{transaction.description} {line.rstrip()}"
 
-    def beautify_credit_card(self, data: JSON, transaction: Transaction) -> None:
-        if data["type"]["id"].str == "AFSCHRIJVING":
-            transaction.payee = data["merchant"]["name"].str
-            if source_amount := data.get("sourceAmount"):
-                fee = data["fee"]["value"].decimal
+    def beautify_credit_card(self, json: JSON, transaction: Transaction) -> None:
+        if json["type"]["id"].str == "AFSCHRIJVING":
+            transaction.payee = json["merchant"]["name"].str
+            if source_amount := json.get("sourceAmount"):
+                fee = json["fee"]["value"].decimal
                 transaction.lines[0].amount -= fee
-                transaction.lines[0].description = f"{source_amount['value']} {source_amount['currency']} * {data['exchangeRate']}"
+                transaction.lines[0].description = f"{source_amount['value']} {source_amount['currency']} * {json['exchangeRate']}"
                 transaction.lines.append(Transaction.Line(transaction.lines[0].account, fee, Category.FEE, "Currency exchange fee"))
 
     def beautify_savings_transfer(self, transaction: Transaction) -> None:
         if suffix := after_prefix(not_none(transaction.payee), "Oranje spaarrekening "):
             transaction.lines[0].counter_account_number = suffix
 
-    def beautify_aflossing(self, agreement: JSON, data: JSON, transaction: Transaction) -> None:
-        if data["type"]["id"].str == "MAANDELIJKSE AFLOSSING":
+    def beautify_aflossing(self, agreement: JSON, json: JSON, transaction: Transaction) -> None:
+        if json["type"]["id"].str == "MAANDELIJKSE AFLOSSING":
             transaction.lines[0].ext_account_number = agreement["id"].str[:3]
             transaction.lines[0].counter_account_number = agreement["referenceAgreement"]["number"].str
 

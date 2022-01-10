@@ -180,7 +180,7 @@ class Transaction:
                     self.merge(matched_transaction)
                     transactions.remove(matched_transaction)
                 else:
-                    matches[(line.ext_account_number, line.counter_account_number, line.amount)].append((self, line))
+                    matches[line.ext_account_number, line.counter_account_number, line.amount].append((self, line))
             if line.counter_account is None and line.category is None:
                 for rule in Transaction.Line.RULES.items():
                     if self.payee and re.match(rule[0], self.payee):

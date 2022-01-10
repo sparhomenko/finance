@@ -21,8 +21,8 @@ class Loader:
                 if line.tax_year == year:
                     box1 += line.amount
 
-        closest_year: Callable[[tuple[int, Decimal]], int] = lambda item: abs(item[0] - year)
-        woz = min(self.house.value.items(), key=closest_year)[1]
+        closest_year: Callable[[tuple[int, Decimal]], int] = lambda house_value: abs(house_value[0] - year)
+        woz = min(self.house.valuation.items(), key=closest_year)[1]
         assert 75000 < woz < 1110000
         notional_rental_value = woz * Decimal("0.005")
         box1 += notional_rental_value
