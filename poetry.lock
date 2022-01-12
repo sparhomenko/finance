@@ -1053,7 +1053,7 @@ python-versions = "*"
 
 [[package]]
 name = "types-requests"
-version = "2.27.5"
+version = "2.27.6"
 description = "Typing stubs for requests"
 category = "dev"
 optional = false
@@ -1172,7 +1172,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.1" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "6cb93af8bc2259a6a2b11f6f5e996fbba7aae3c0d95ff34bccada908417434ce"
+content-hash = "c6e1f34d69b37042a970ee9ee6bc4a9c22a36792f0581474b7bc2636eb33608d"
 
 [metadata.files]
 astor = [
@@ -1736,8 +1736,8 @@ types-beautifulsoup4 = [
     {file = "types_beautifulsoup4-4.10.10-py3-none-any.whl", hash = "sha256:68b58305c9f9742a96262c1c44e46f713af610fe63f161a61880326a871dbeba"},
 ]
 types-requests = [
-    {file = "types-requests-2.27.5.tar.gz", hash = "sha256:a67dc1a8512312b8cb89f3ba95f9a0e69ef3436ae77c9bd4f328cd88f17adda2"},
-    {file = "types_requests-2.27.5-py3-none-any.whl", hash = "sha256:9c9390b18b222956155af6678570f452edafa3bb94bd5a4efe67da1105aa128c"},
+    {file = "types-requests-2.27.6.tar.gz", hash = "sha256:5e0dc681e9bfadb5c1d17f63d29f6d13d29ef2897d30cb9c79285b34a1655fd7"},
+    {file = "types_requests-2.27.6-py3-none-any.whl", hash = "sha256:8f8a3cf66c525247750b0a0e6ffef4a210d7c8637065a1e7a3cb5769b1eb82a4"},
 ]
 types-selenium = [
     {file = "types-selenium-3.141.7.tar.gz", hash = "sha256:5e8da51cc686cf3e4ffab12fce93773ffddc328b3ac17e110e7880b10eb7fdca"},
