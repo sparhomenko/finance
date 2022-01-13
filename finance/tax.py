@@ -1,16 +1,16 @@
 from decimal import Decimal
 from typing import Callable
 
-from finance.core import Account, Transaction, transactions
+from finance.core import Account, AccountType, Line, Transaction, transactions
 from finance.woz import Property
 
 
 class Loader:
     def __init__(self, house: Property):
-        self.house = house
+        self._house = house
 
     def load(self) -> list[Account]:
-        return [Account("NL36INGB0003445588", "Belastingdienst", Account.Type.LIABILITY, Decimal(0), "Belastingdienst", "https://www.belastingdienst.nl/", matcher=match_any)]
+        return [Account("NL36INGB0003445588", "Belastingdienst", AccountType.LIABILITY, Decimal(0), "Belastingdienst", "https://www.belastingdienst.nl/", matcher=_match_any)]
 
     def calculate(self) -> Decimal:
         year = 2021
@@ -22,7 +22,7 @@ class Loader:
                     box1 += line.amount
 
         closest_year: Callable[[tuple[int, Decimal]], int] = lambda house_value: abs(house_value[0] - year)
-        woz = min(self.house.valuation.items(), key=closest_year)[1]
+        woz = min(self._house.valuation.items(), key=closest_year)[1]
         assert 75000 < woz < 1110000
         notional_rental_value = woz * Decimal("0.005")
         box1 += notional_rental_value
@@ -31,12 +31,12 @@ class Loader:
         return 68508 * Decimal("0.371") + (box1 - 68508) * Decimal(0.495)
 
 
-def match_any(account: Account, matching_transaction: Transaction, matching_line: Transaction.Line) -> Transaction:
+def _match_any(account: Account, matching_transaction: Transaction, matching_line: Line) -> Transaction:
     return Transaction(
         matching_transaction.date,
         matching_transaction.payee,
         matching_transaction.description,
         [
-            Transaction.Line(account, -matching_line.amount, counter_account_number=matching_line.account.number),
+            Line(account, -matching_line.amount, counter_account_number=matching_line.account.number),
         ],
     )

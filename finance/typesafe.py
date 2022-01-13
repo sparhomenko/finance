@@ -22,10 +22,6 @@ def re_groups(match: re.Match[str] | None) -> tuple[str, ...]:
     return cast(tuple[str, ...], not_none(match).groups())
 
 
-def attributes(typ: object) -> dict[str, object]:
-    return cast(dict[str, object], typ.__dict__)
-
-
 if TYPE_CHECKING:
 
     class _JSONArray(list[JSONType], Protocol):  # type: ignore  # noqa: F821 - false positive
