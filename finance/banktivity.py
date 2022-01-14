@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import gzip
-from abc import ABC
 from base64 import b64decode, b64encode
 from dataclasses import Field, dataclass, field, fields
 from datetime import datetime, timedelta
@@ -51,20 +50,101 @@ _CATEGORIES: Final = MappingProxyType(
         Category.UTILITIES: "Utilities",
     },
 )
-_ObjectType = TypeVar("_ObjectType", covariant=True)
-_ModuleType = TypeVar("_ModuleType", bound=type)
+_AnyObjectT = TypeVar("_AnyObjectT", covariant=True)
 
 
 @dataclass
-class _Converter(Generic[_ObjectType]):
-    obj_type: type[_ObjectType]
-    parse: Callable[[str], _ObjectType]
-    unparse: Callable[[_ObjectType], str] = str
+class _Converter(Generic[_AnyObjectT]):
+    obj_type: type[_AnyObjectT]
+    parse: Callable[[str], _AnyObjectT]
+    unparse: Callable[[_AnyObjectT], str] = str
 
 
-@dataclass
-class _Object(ABC):
-    """Parent abstract class for all serialised Banktivity objects"""
+class _Object:
+    @classmethod
+    def from_element(cls, converters: dict[str, _Converter[object]], element: ElementTree.Element) -> _Object:
+        elements: dict[ElementTree.Element, object] = {}
+        for field_element in element.findall("field"):
+            attr: object | None
+            if field_element.get("null") or field_element.text is None or field_element.text.endswith("(null)"):
+                attr = None
+            else:
+                if enum_class_name := field_element.get("enum"):
+                    attr = _Enum.from_name(enum_class_name, field_element.text)
+                else:
+                    attr = converters[not_none(field_element.get("type"))].parse(field_element.text)
+            elements[field_element] = attr
+        for record_element in element.findall("record"):
+            elements[record_element] = cls.from_element(converters, record_element)
+        for collection_element in element.findall("collection"):
+            subelements = []
+            for record_element in collection_element.findall("record"):
+                subelements.append(cls.from_element(converters, record_element))
+            elements[collection_element] = subelements
+        attrs = {_banktivity_to_python(not_none(element.get("name"))): attr for element, attr in elements.items()}
+        return dacite.core.from_dict(not_none(_Object.subclass(not_none(element.get("type")))), attrs, dacite.config.Config(check_types=False))
+
+    def to_element(self, converters: dict[str, _Converter[object]], tag: str) -> ElementTree.Element:
+        element = ElementTree.Element(tag, {"type": self.class_name()})
+        for attr_name, attr_value in cast(dict[str, object], self.__dict__).items():
+            if attr_name == "id" or attr_value is None:
+                continue
+            if isinstance(attr_value, _Enum):
+                subelement = attr_value.to_element(converters, "field")
+            elif isinstance(attr_value, _TransactionType):
+                subelement = attr_value.to_element(converters, "record")
+            elif isinstance(attr_value, list):
+                subelement = ElementTree.Element("collection", {"type": "array"})
+                for record in attr_value:
+                    assert isinstance(record, _Object)
+                    subsubelement = record.to_element(converters, "record")
+                    subsubelement.set("name", "element")
+                    subelement.append(subsubelement)
+            else:
+                element_type, converter = next(converter for converter in converters.items() if isinstance(attr_value, converter[1].obj_type))
+                subelement = ElementTree.Element("field", {"type": element_type})
+                subelement.text = converter.unparse(attr_value)
+            subelement.set("name", _python_to_banktivity(attr_name))
+            element.append(subelement)
+        return element
+
+    @classmethod
+    def class_name(cls) -> str:
+        return cls._convert(cls.__name__, there=True)
+
+    @classmethod
+    def subclass(cls: _ObjectTypeT, name: str) -> _ObjectTypeT | None:
+        for subclass in cls.__subclasses__():
+            if subclass.__name__ == cls._convert(name, there=False):
+                return subclass
+            if subsubclass := subclass.subclass(name):
+                return subsubclass
+        return None
+
+    @classmethod
+    def _convert(cls, name: str, there: bool) -> str:
+        return name.removeprefix("_") if there else f"_{name}"
+
+
+_ObjectTypeT = TypeVar("_ObjectTypeT", bound=type[_Object])
+
+
+class _Enum(_Object, Enum):
+    @classmethod
+    def from_name(cls, class_name: str, name: str) -> _Enum | str:
+        if subclass := _Enum.subclass(class_name):
+            return subclass[inflection.underscore(name).upper()]
+        return name
+
+    def to_element(self, _: dict[str, _Converter[object]], tag: str) -> ElementTree.Element:
+        element = ElementTree.Element(tag, {"enum": self.class_name()})
+        element.text = inflection.dasherize(self.name).lower()
+        return element
+
+    @classmethod
+    def _convert(cls, name: str, there: bool) -> str:
+        prefix = "IGGCSyncAccounting"
+        return f"{prefix}{super()._convert(name, there)}" if there else super()._convert(name.removeprefix(prefix), there)
 
 
 @dataclass
@@ -79,7 +159,7 @@ class _Currency(_Entity):
 
 
 @unique
-class _AccountClass(Enum):
+class _AccountClass(_Enum):
     CURRENT = auto()
     CREDIT_CARD = auto()
     CHECKING = auto()
@@ -92,7 +172,7 @@ class _AccountClass(Enum):
 
 
 @unique
-class _AccountType(Enum):
+class _AccountType(_Enum):
     ASSET = auto()
     LIABILITY = auto()
     INCOME = auto()
@@ -100,7 +180,7 @@ class _AccountType(Enum):
 
 
 @unique
-class _AccountSubtype(Enum):
+class _AccountSubtype(_Enum):
     ASSET = auto()
     CHECKING = auto()
     CREDIT_CARD = auto()
@@ -167,7 +247,7 @@ class _LoanInfo(_Entity):
 @dataclass
 class _GroupItem(_Object):
     group_id: str
-    group_type: str = "IGGAccountingPrimaryAccount"
+    group_type: str = "IGGCAccountingPrimaryAccount"
 
 
 @dataclass
@@ -182,7 +262,7 @@ class _TransactionTypeV2(_Entity):
 
 
 @unique
-class _TransactionBaseType(Enum):
+class _TransactionBaseType(_Enum):
     DEPOSIT = auto()
     WITHDRAWAL = auto()
     TRANSFER = auto()
@@ -260,7 +340,7 @@ class Document:
             "date": _Converter[datetime](datetime, lambda text: datetime.strptime(text, "%Y-%m-%dT%H:%M:%S%z"), lambda attr: attr.isoformat(timespec="seconds")),
             "url": _Converter[ParseResult](ParseResult, urlparse, urlunparse),
             "data": _Converter(_Recurrence, lambda text: archiver.unarchive(b64decode(text)), lambda attr: b64encode(archiver.archive(attr)).decode()),
-            "reference": _Converter[_Entity](_Entity, lambda text: self._entities[cast(tuple[str, str], tuple(text.split(":")))], lambda attr: f"{attr.__class__.__name__}:{attr.id}"),
+            "reference": _Converter[_Entity](_Entity, lambda text: self._entities[cast(tuple[str, str], tuple(text.split(":")))], lambda attr: f"{attr.class_name()}:{attr.id}"),
         }
 
     def load(self) -> None:
@@ -273,7 +353,7 @@ class Document:
             entities = self._api("entities", query={"type": entity_type}).get("entities")
             if entities:
                 for entity_json in entities:
-                    entity = self._parse_entity(entity_json)
+                    entity = self._from_json(entity_json)
                     self._entities[entity_type, entity.id] = entity
                     if isinstance(entity, _Currency):
                         self._currencies[not_none(entity.code)] = entity
@@ -296,9 +376,9 @@ class Document:
             json=JSON(
                 {
                     "syncToken": self._sync_token,
-                    "create": list(map(self._unparse_entity, self._created)),
-                    "update": list(map(self._unparse_entity, self._updated)),
-                    "delete": list(map(self._unparse_entity, self._deleted)),
+                    "create": list(map(self._to_json, self._created)),
+                    "update": list(map(self._to_json, self._updated)),
+                    "delete": list(map(self._to_json, self._deleted)),
                 },
             ),
         )
@@ -308,11 +388,19 @@ class Document:
 
     def clear(self) -> None:
         for key, entity in list(self._entities.items()):
-            if isinstance(entity, _Account) and entity.account_class not in {_AccountClass.REVENUE, _AccountClass.EXPENSE} or key[0] in {"Transaction", "LoanInfo"}:
+            is_account = isinstance(entity, _Account) and entity.account_class not in {_AccountClass.REVENUE, _AccountClass.EXPENSE}
+            is_group = isinstance(entity, _Group) and not entity.id.startswith("com.iggsoftware.accounting.group.")
+            is_other = isinstance(entity, (_Transaction, _LoanInfo))
+            if is_account or is_group or is_other:
                 self._entities.pop(key)
                 self._deleted.append(entity)
                 if isinstance(entity, _Account):
                     self._accounts.pop(entity.name)
+                if isinstance(entity, _Group):
+                    self._groups.pop(entity.name)
+            elif isinstance(entity, _Group) and entity.name == "Accounts":
+                entity.ordered_items.clear()
+                self._updated.append(entity)
 
     def create_account(self, account: Account) -> _Account:
         account_type = _Account.TYPES[account.type]
@@ -341,7 +429,7 @@ class Document:
             self._created.append(group)
             self._groups[group_name] = group
             root = self._groups["Accounts"]
-            root.ordered_items.append(_GroupItem(group.id, "IGGAccountingGroup"))
+            root.ordered_items.append(_GroupItem(group.id, "IGGCAccountingGroup"))
             self._updated.append(root)
         else:
             self._updated.append(group)
@@ -438,42 +526,20 @@ class Document:
         unpadder = PKCS7(_KEY_SIZE * 8).unpadder()
         return unpadder.update(decrypted_data) + unpadder.finalize()
 
-    def _get_class(self, name: str, subclass_of: _ModuleType) -> _ModuleType | None:
-        types = cast(dict[str, object], globals())  # noqa: WPS421 - the only way to lookup a class by name in the current module
-        if found_type := types.get(f"_{name}"):
-            assert issubclass(cast(type, found_type), subclass_of)
-            return cast(_ModuleType, found_type)
-        return None
-
-    def _parse_object(self, element: ElementTree.Element) -> _Object:
-        elements: dict[ElementTree.Element, object] = {}
-        entity_class = not_none(self._get_class(not_none(element.get("type")), _Object))
-        for field_element in element.findall("field"):
-            attr: object | None
-            if field_element.get("null") or field_element.text is None or field_element.text.endswith("(null)"):
-                attr = None
-            else:
-                if enum_class_name := field_element.get("enum"):
-                    if enum_class := self._get_class(enum_class_name.removeprefix("IGGCSyncAccounting"), Enum):
-                        attr = enum_class[inflection.underscore(field_element.text).upper()]
-                    else:
-                        attr = field_element.text
-                else:
-                    attr = self._converters[not_none(field_element.get("type"))].parse(field_element.text)
-            elements[field_element] = attr
-        for record_element in element.findall("record"):
-            elements[record_element] = self._parse_object(record_element)
-        for collection_element in element.findall("collection"):
-            elements[collection_element] = list(map(self._parse_object, collection_element.findall("record")))
-        attrs = {_banktivity_to_python(not_none(element.get("name"))): attr for element, attr in elements.items()}
-        attrs["id"] = element.get("id")
-        return dacite.core.from_dict(entity_class, attrs, dacite.config.Config(check_types=False))
-
-    def _parse_entity(self, entity_json: JSON) -> _Entity:
+    def _from_json(self, entity_json: JSON) -> _Entity:
         entity_xml_str = gzip.decompress(self._decrypt(BytesIO(b64decode(entity_json["data"].str))))
-        entity = self._parse_object(not_none(ElementTree.fromstring(entity_xml_str)))
+        element = not_none(ElementTree.fromstring(entity_xml_str))
+        entity = _Object.from_element(self._converters, element)
         assert isinstance(entity, _Entity)
+        entity.id = not_none(element.get("id"))
         return entity
+
+    def _to_json(self, entity: _Entity) -> JSONType:
+        element = entity.to_element(self._converters, "entity")
+        element.set("id", entity.id)
+        entity_xml_str = ElementTree.tostring(element)
+        encoded = b64encode(self._encrypt(gzip.compress(entity_xml_str))).decode()
+        return {"id": entity.id, "type": not_none(element.get("type")), "data": encoded}
 
     def _transaction_type(self, name: str) -> _TransactionType:
         entity = self._entities["TransactionTypeV2", f"XXX-{name}-ID"]
@@ -482,36 +548,6 @@ class Document:
             base_type=_TransactionBaseType[name.upper()],
             transaction_type=entity,
         )
-
-    def _unparse_object(self, name: str, banktivity_object: _Object) -> ElementTree.Element:
-        root_element = ElementTree.Element(name, {"type": banktivity_object.__class__.__name__.removeprefix("_")})
-        for attr_name, attr_value in cast(dict[str, object], banktivity_object.__dict__).items():
-            if attr_name == "id" or attr_value is None:
-                continue
-            if isinstance(attr_value, _TransactionType):
-                element = self._unparse_object("record", attr_value)
-            elif isinstance(attr_value, list):
-                element = ElementTree.Element("collection", {"type": "array"})
-                for record in attr_value:
-                    subelement = self._unparse_object("record", record)
-                    subelement.set("name", "element")
-                    element.append(subelement)
-            elif isinstance(attr_value, Enum):
-                element = ElementTree.Element("field", {"enum": f"IGGCSyncAccounting{attr_value.__class__.__name__}"})
-                element.text = inflection.dasherize(attr_value.name).lower()
-            else:
-                element_type, converter = next(converter for converter in self._converters.items() if isinstance(attr_value, converter[1].obj_type))
-                element = ElementTree.Element("field", {"type": element_type})
-                element.text = converter.unparse(attr_value)
-            element.set("name", _python_to_banktivity(attr_name))
-            root_element.append(element)
-        return root_element
-
-    def _unparse_entity(self, entity: _Entity) -> JSONType:
-        element = self._unparse_object("entity", entity)
-        element.set("id", entity.id)
-        encoded = b64encode(self._encrypt(gzip.compress(ElementTree.tostring(element)))).decode()
-        return {"id": entity.id, "type": entity.__class__.__name__, "data": encoded}
 
 
 archiver.update_class_map({"IGGFDateRecurrenceRule": _Recurrence})

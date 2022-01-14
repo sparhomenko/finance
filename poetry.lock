@@ -1172,7 +1172,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.1" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "69590e59bfd541d155f2a98cc2f47342255d3f92dec986bf14ed86e15b4fde78"
+content-hash = "bdb2ac10a1287eab041905711baa43a79b6c41d9fa39f48361f8ad6c254578e7"
 
 [metadata.files]
 astor = [

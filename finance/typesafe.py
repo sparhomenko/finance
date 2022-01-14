@@ -69,6 +69,9 @@ class JSON:
     def __str__(self) -> string:
         return str(self.body)
 
+    def __bool__(self) -> bool:
+        return bool(self.body)
+
     def __iter__(self) -> Iterator[JSON]:
         return iter(self._as_array())
 
