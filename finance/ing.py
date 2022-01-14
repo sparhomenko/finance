@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.padding import PKCS7, PaddingContext
 from more_itertools import distribute, interleave
 from requests import Request, Session, post
 
-from finance.core import Account, AccountType, Category, Line, Transaction
+from finance.core import Account, AccountType, Category, Line, Loader, Transaction
 from finance.typesafe import JSON, not_none, re_groups
 
 _NO_IV: Final = bytearray(16)
@@ -47,8 +47,8 @@ class _SRPClient(srp.User):
         return srp._mod.calculate_M(self.hash_class, self.N, self.g, self.u.to_bytes(32, "big"), self.s, self.A, self.B, self.K)  # noqa: WPS437
 
 
-class Profile:
-    def __init__(self, profile_id: str, device_id: tuple[str, str], key: str, pin: tuple[str, str, str]):
+class Profile(Loader):
+    def __init__(self, profile_id: str, device_id: tuple[str, str], key: str, pin: tuple[str, str, str], blacklist: Iterable[str] = ()):
         self._session = Session()
         self._session.headers.clear()
         self._session.headers["X-Capability"] = "proxy-protocol-version:2.0"
@@ -59,13 +59,14 @@ class Profile:
         self._auth_key = self._login2_rsa(private_key)
         self._proxy_key, self._hmac_key = self._login3_ecdh()
         self._access_token = self._login4_oauth()
+        self._blacklist = blacklist
 
-    def load(self, blacklist: Iterable[str] = ()) -> list[Account]:
+    def load(self) -> list[Account]:
         accounts = []
         types = "CURRENT,CARD,SAVINGS,MORTGAGE"
         for agreement in self._proxy_api("/agreements", f"agreementTypes={types}")["agreements"]:
             number = agreement["commercialId"]["value"].str
-            if number in blacklist:
+            if number in self._blacklist:
                 continue
             name = (agreement.get("displayAlias") or agreement.get("holderName") or agreement["accountId"]).str
             agreement_type = agreement["type"].str

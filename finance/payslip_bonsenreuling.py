@@ -6,11 +6,13 @@ from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup, element
 from requests import Session
 
-from finance.core import BEGINNING, Account, AccountType, Category, Line, Transaction
+from finance.core import BEGINNING, Account, AccountType, Category, Line
+from finance.core import Loader as BaseLoader
+from finance.core import Transaction
 from finance.typesafe import JSON
 
 
-class Loader:
+class Loader(BaseLoader):
     def __init__(self, email: str, password: str, name: str, number: str):
         self._name = name
         self._number = number

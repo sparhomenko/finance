@@ -1,11 +1,13 @@
 from decimal import Decimal
 from typing import Callable
 
-from finance.core import Account, AccountType, Line, Transaction, transactions
+from finance.core import Account, AccountType, Line
+from finance.core import Loader as BaseLoader
+from finance.core import Transaction, transactions
 from finance.woz import Property
 
 
-class Loader:
+class Loader(BaseLoader):
     def __init__(self, house: Property):
         self._house = house
 

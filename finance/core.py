@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -190,6 +191,19 @@ class Transaction:
         self.lines += other.lines
         if len(self.lines) == 1:
             self.payee = None
+
+
+class Loader(ABC):
+    @abstractmethod
+    def load(self) -> list[Account]:
+        """No body for an abstract class"""
+
+
+def load_accounts(loaders: list[Loader]) -> list[Account]:
+    accounts: list[Account] = sum([loader.load() for loader in loaders], [])
+    for account in accounts:
+        account.complete()
+    return accounts
 
 
 transactions: list[Transaction] = []

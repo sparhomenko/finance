@@ -4,11 +4,13 @@ from decimal import Decimal
 import requests
 from requests.auth import HTTPBasicAuth
 
-from finance.core import BEGINNING, Account, AccountType, Line, Transaction
+from finance.core import BEGINNING, Account, AccountType, Line
+from finance.core import Loader as BaseLoader
+from finance.core import Transaction
 from finance.typesafe import JSON
 
 
-class Loader:
+class Loader(BaseLoader):
     def __init__(self, client_id: str, client_secret: str):
         self._url = "https://api-m.paypal.com"
         token = JSON.response(requests.post(f"{self._url}/v1/oauth2/token", data={"grant_type": "client_credentials"}, auth=HTTPBasicAuth(client_id, client_secret)))["access_token"]

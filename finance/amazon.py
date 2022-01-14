@@ -11,10 +11,12 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 
-from finance.core import Account, AccountType, Line, Transaction
+from finance.core import Account, AccountType, Line
+from finance.core import Loader as BaseLoader
+from finance.core import Transaction
 
 
-class Loader:
+class Loader(BaseLoader):
     def __init__(self, email: str, password: str, totp_secret: str):
         add_chromedriver_to_path()
 

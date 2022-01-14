@@ -9,7 +9,9 @@ from more_itertools import one
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LAParams, LTTextContainer
 
-from finance.core import BEGINNING, Account, AccountType, Category, Line, Transaction
+from finance.core import BEGINNING, Account, AccountType, Category, Line
+from finance.core import Loader as BaseLoader
+from finance.core import Transaction
 from finance.typesafe import re_groups
 
 
@@ -20,7 +22,7 @@ class _Section(Enum):
     CUMULATIVE = auto()
 
 
-class Loader:
+class Loader(BaseLoader):
     def __init__(self, path: str, name: str, number: str):
         self._path = path
         self._name = name

@@ -6,11 +6,11 @@ from more_itertools import last, one
 from requests import Session
 from requests.models import Response
 
-from finance.core import Account, AccountType, Line, Transaction
+from finance.core import Account, AccountType, Line, Loader, Transaction
 from finance.typesafe import JSON
 
 
-class Property:
+class Property(Loader):
     def __init__(self, query: str):
         self._query = query
         self._session = Session()
