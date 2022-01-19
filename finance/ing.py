@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.padding import PKCS7, PaddingContext
 from more_itertools import distribute, interleave
 from requests import Request, Session, post
 
-from finance.core import Account, AccountType, Category, Line, Loader, Transaction
+from finance.core import Account, AccountType, Amount, Category, Line, Loader, Transaction
 from finance.typesafe import JSON, not_none, re_groups
 
 _NO_IV: Final = bytearray(16)
@@ -72,7 +72,7 @@ class Profile(Loader):
             agreement_type = agreement["type"].str
             if agreement_type in {"MORTGAGE", "CARD"}:
                 agreement = not_none(self._fetch_link(agreement, "expensiveDetails"))
-            balance = agreement["balance"]["value"].decimal
+            balance = Amount(agreement["balance"]["value"].decimal)
             typ = {"CURRENT": AccountType.CURRENT, "SAVINGS": AccountType.SAVINGS, "CARD": AccountType.CREDIT_CARD, "MORTGAGE": AccountType.MORTGAGE}[agreement_type]
             account = Account(number, name, typ, balance, "ING", "https://www.ing.nl/", "INGBNL2A")
             if agreement_type == "MORTGAGE":
@@ -103,7 +103,7 @@ class Profile(Loader):
                         json["executionDate"].strptime("%Y-%m-%d").replace(tzinfo=ZoneInfo("Europe/Amsterdam")),
                         json["subject"].str,
                         " ".join(line.str for line in subject_lines) if subject_lines else None,
-                        [Line(account, json["amount"]["value"].decimal)],
+                        [Line(account, Amount(json["amount"]["value"].decimal))],
                         not json.get("reservation"),
                     )
                     if "counterAccount" in json and json["counterAccount"]["accountNumber"]["type"].str == "IBAN":
@@ -281,7 +281,7 @@ class Profile(Loader):
         if json["type"]["id"].str == "AFSCHRIJVING":
             transaction.payee = json["merchant"]["name"].str
             if source_amount := json.get("sourceAmount"):
-                fee = json["fee"]["value"].decimal
+                fee = Amount(json["fee"]["value"].decimal)
                 transaction.lines[0].amount -= fee
                 transaction.lines[0].description = f"{source_amount['value']} {source_amount['currency']} * {json['exchangeRate']}"
                 transaction.lines.append(Line(transaction.lines[0].account, fee, Category.FEE, "Currency exchange fee"))
@@ -371,7 +371,7 @@ class Profile(Loader):
 
 def _match_mortgage_payment(account: Account, transaction: Transaction, line: Line) -> Transaction:
     monthly_interest_rate = not_none(account.interest_rate) / 12
-    repayment = ((-not_none(account.monthly_payment) - account.initial_balance * monthly_interest_rate) / (monthly_interest_rate + 1) * 100).to_integral_value(ROUND_DOWN) / 100
+    repayment = Amount(((-account.initial_balance * monthly_interest_rate - not_none(account.monthly_payment)) / (monthly_interest_rate + 1) * 100).amount.to_integral_value(ROUND_DOWN) / 100)
     interest = line.amount - repayment
     return Transaction(
         transaction.date,

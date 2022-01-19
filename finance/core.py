@@ -24,12 +24,56 @@ class AccountType(Enum):
     MORTGAGE = auto()
 
 
+class Amount:
+    def __init__(self, amount: int | str | Decimal = 0, currency: str = "EUR"):
+        self.amount = Decimal(amount)
+        self.currency = currency
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Amount):
+            return self.amount == other.amount and self.currency == other.currency
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash((self.amount, self.currency))
+
+    def __neg__(self) -> Amount:
+        return Amount(-self.amount, self.currency)
+
+    def __add__(self, other: _Amount) -> Amount:
+        return Amount(self.amount + self._as_amount(other), self.currency)
+
+    def __sub__(self, other: _Amount) -> Amount:
+        return Amount(self.amount - self._as_amount(other), self.currency)
+
+    def __mul__(self, other: _Amount) -> Amount:
+        return Amount(self.amount * self._as_amount(other), self.currency)
+
+    def __truediv__(self, other: _Amount) -> Amount:
+        return Amount(self.amount / self._as_amount(other), self.currency)
+
+    def __lt__(self, other: _Amount) -> bool:
+        return self.amount < self._as_amount(other)
+
+    def __gt__(self, other: _Amount) -> bool:
+        return self.amount > self._as_amount(other)
+
+    def _as_amount(self, other: _Amount) -> int | Decimal:
+        if isinstance(other, Amount):
+            assert self.currency == other.currency
+            return other.amount
+        return other
+
+
+_Amount = int | Decimal | Amount
+
+
 @dataclass
 class Account:
     number: str
     name: str
     type: AccountType
-    initial_balance: Decimal
+    initial_balance: Amount
     bank_name: str
     bank_site: str | None
     routing_number: str | None = None
@@ -37,7 +81,7 @@ class Account:
     interest_rate: Decimal | None = None
     monthly_payment: Decimal | None = None
     group: str | None = None
-    matcher: Callable[["Account", "Transaction", "Line"], "Transaction"] | None = None
+    matcher: Callable[[Account, Transaction, Line], Transaction] | None = None
     tax_base: Decimal = field(default_factory=lambda: Decimal(0))
 
     def __str__(self) -> str:
@@ -121,7 +165,7 @@ class Line:
     }
 
     account: Account
-    amount: Decimal
+    amount: Amount
     category: Category | None = None
     description: str | None = None
     counter_account_number: str | None = None
@@ -158,7 +202,7 @@ class Transaction:
     number: int | None = None
 
     def __str__(self) -> str:
-        return f"{self.date.strftime('%Y-%m-%d %H:%M:%S')} {self.payee:15.15} [{', '.join(map(str, self.lines)):100.100}]"
+        return f"{self.date.strftime('%Y-%m-%d %H:%M:%S')} {self.payee:40.40} ({self.description:40.40}) [{', '.join(map(str, self.lines)):40.40}]"
 
     def complete(self, must_have: bool = False) -> bool:
         if self.date < BEGINNING and not must_have:
@@ -207,6 +251,6 @@ def load_accounts(loaders: list[Loader]) -> list[Account]:
 
 
 transactions: list[Transaction] = []
-_MatchKey = tuple[str, str, Decimal]
+_MatchKey = tuple[str, str, Amount]
 _MatchCandidate = tuple[Transaction, Line]
 _matches: dict[_MatchKey, list[_MatchCandidate]] = defaultdict(list)

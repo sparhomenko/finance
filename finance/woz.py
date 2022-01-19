@@ -1,12 +1,11 @@
 from datetime import datetime
-from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from more_itertools import last, one
 from requests import Session
 from requests.models import Response
 
-from finance.core import Account, AccountType, Line, Loader, Transaction
+from finance.core import Account, AccountType, Amount, Line, Loader, Transaction
 from finance.typesafe import JSON
 
 
@@ -18,7 +17,7 @@ class Property(Loader):
         doc = one(JSON.response(self._api("api/geocoder/v3/suggest", query={"query": query}))["docs"])
         address = JSON.response(self._api("api/geocoder/v3/lookup", query={"id": doc["id"].str}))
         self._id = int(address["adresseerbaarobject_id"].str)
-        self.valuation: dict[int, Decimal] = {}
+        self.valuation: dict[int, Amount] = {}
 
     def load(self) -> list[Account]:
         request = f"""<wfs:GetFeature
@@ -42,10 +41,10 @@ class Property(Loader):
         </wfs:GetFeature>"""
         for feature in JSON.response(self._api("woz-proxy/wozloket", body=request))["features"]:
             date = feature["properties"]["wobj_wrd_ingangsdatum"].strptime("%d-%m-%Y").replace(tzinfo=ZoneInfo("Europe/Amsterdam"))
-            self.valuation[date.year - 1] = feature["properties"]["wobj_wrd_woz_waarde"].decimal
+            self.valuation[date.year - 1] = Amount(feature["properties"]["wobj_wrd_woz_waarde"].decimal)
         self.valuation = dict(sorted(self.valuation.items()))
         account = Account(str(self._id), self._query, AccountType.PROPERTY, last(self.valuation.values()), "WOZ value", "https://www.wozwaardeloket.nl")
-        last_valuation = Decimal(0)
+        last_valuation = Amount()
         for year, valuation in self.valuation.items():
             Transaction(datetime(year, 1, 1, tzinfo=ZoneInfo("Europe/Amsterdam")), "WOZ value", None, [Line(account, valuation - last_valuation)]).complete(must_have=True)
             last_valuation = valuation

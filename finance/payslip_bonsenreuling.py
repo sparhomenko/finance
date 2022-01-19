@@ -1,12 +1,11 @@
 from datetime import datetime
-from decimal import Decimal
 from typing import Callable
 from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup, element
 from requests import Session
 
-from finance.core import BEGINNING, Account, AccountType, Category, Line
+from finance.core import BEGINNING, Account, AccountType, Amount, Category, Line
 from finance.core import Loader as BaseLoader
 from finance.core import Transaction
 from finance.typesafe import JSON
@@ -31,7 +30,7 @@ class Loader(BaseLoader):
     def load(self) -> list[Account]:
         year = BEGINNING.year
         month = 0
-        account = Account(self._number, self._name, AccountType.LIABILITY, Decimal(0), self._name, None)
+        account = Account(self._number, self._name, AccountType.LIABILITY, Amount(), self._name, None)
         while True:
             month += 1
             if month > 12:
@@ -57,10 +56,10 @@ class Loader(BaseLoader):
             iban = iban_element.text.removeprefix("Account number IBAN: ")
             salary = table["Gross Salary"]["Payment"]
             pension = -table["Deduction Pension premium"]["Retention"]
-            holiday_payment = table.get("Holiday pay", {}).get("Payment", 0)
+            holiday_payment = table.get("Holiday pay", {}).get("Payment", Amount())
             payment = table["Net payment"]["Payment"]
             holiday = reservation["Holiday pay"]["Res"]
-            tax = -table["Wage tax Table"]["Retention"] - table.get("Wage tax BT", {}).get("Retention", 0)
+            tax = -table["Wage tax Table"]["Retention"] - table.get("Wage tax BT", {}).get("Retention", Amount())
 
             assert payment == salary + holiday_payment + pension + tax
 
@@ -74,7 +73,7 @@ class Loader(BaseLoader):
             ]
             Transaction(date, self._name, f"Payslip {date.strftime('%B %Y')}", lines).complete(must_have=True)
 
-        account.initial_balance = Decimal(0)
+        account.initial_balance = Amount()
         return [account]
 
     def _parse_headers(self, table: element.Tag) -> dict[str, str | None]:
@@ -87,7 +86,7 @@ class Loader(BaseLoader):
             headers[title] = None if header_value == "-" else header_value
         return headers
 
-    def _parse_rows(self, table: element.Tag) -> dict[str, dict[str, Decimal]]:
+    def _parse_rows(self, table: element.Tag) -> dict[str, dict[str, Amount]]:
         rows = {}
         headers = []
         for th in table.find_all("th"):
@@ -102,9 +101,9 @@ class Loader(BaseLoader):
                     for index, header in enumerate(headers[1:], 1):
                         text = tds[index].text
                         if text:
-                            row[header] = self._to_decimal(text)
+                            row[header] = self._to_amount(text)
                     rows[title] = row
         return rows
 
-    def _to_decimal(self, text: str) -> Decimal:
-        return Decimal(text.replace(".", "").replace(",", "."))
+    def _to_amount(self, text: str) -> Amount:
+        return Amount(text.replace(".", "").replace(",", "."))

@@ -26,8 +26,8 @@ from cryptography.hazmat.primitives.padding import PKCS7
 from more_itertools import one
 from requests import post, request
 
-from finance.core import BEGINNING, Account, AccountType, Category, Line, Transaction
-from finance.typesafe import JSON, JSONType, not_none
+from finance.core import BEGINNING, Account, AccountType, Amount, Category, Line, Transaction
+from finance.typesafe import JSON, JSONObject, not_none
 
 _KEY_SIZE: Final = 16
 _CATEGORIES: Final = MappingProxyType(
@@ -361,7 +361,6 @@ class Document:
                         self._groups[not_none(entity.name)] = entity
                     elif isinstance(entity, _Account):
                         self._accounts[entity.name] = entity
-        self._default_currency = self._currencies["EUR"]
         self._transaction_type_deposit = self._transaction_type("Deposit")
         self._transaction_type_withdrawal = self._transaction_type("Withdrawal")
         self._transaction_type_transfer = self._transaction_type("Transfer")
@@ -397,7 +396,7 @@ class Document:
                 if isinstance(entity, _Account):
                     self._accounts.pop(entity.name)
                 if isinstance(entity, _Group):
-                    self._groups.pop(entity.name)
+                    self._groups.pop(not_none(entity.name))
             elif isinstance(entity, _Group) and entity.name == "Accounts":
                 entity.ordered_items.clear()
                 self._updated.append(entity)
@@ -407,7 +406,7 @@ class Document:
         entity = _Account(
             name=account.name,
             note=account.description,
-            currency=self._default_currency,
+            currency=self._currencies[account.initial_balance.currency],
             bank_account_number=account.number,
             bank_routing_number=account.routing_number,
             institution_name=account.bank_name,
@@ -443,19 +442,19 @@ class Document:
         lines = []
         account_lines: dict[str, _LineItem] = {}
 
-        def account_line(account: str, amount: Decimal, cleared: bool, memo: str | None) -> None:
+        def account_line(account: str, amount: Amount, cleared: bool, memo: str | None) -> None:
             line = account_lines.get(account, None)
             if line:
-                line.account_amount += amount
-                line.transaciton_amount += amount
+                line.account_amount += amount.amount
+                line.transaciton_amount += amount.amount
                 line.memo = memo
             else:
-                line = _LineItem(self._accounts[account], amount, amount, cleared=cleared, memo=memo)
+                line = _LineItem(self._accounts[account], amount.amount, amount.amount, cleared=cleared, memo=memo)
                 account_lines[account] = line
                 lines.append(line)
 
         transfer = False
-        total = Decimal(0)
+        total = Amount(0, transaction.lines[0].amount.currency)
         for line in transaction.lines:
             account_line(line.account.name, line.amount, transaction.cleared, line.description)
             if line.counter_account:
@@ -464,7 +463,7 @@ class Document:
             else:
                 total += line.amount
                 account = self._accounts[_CATEGORIES[line.category]] if line.category else None
-                lines.append(_LineItem(account, -line.amount, -line.amount, cleared=transaction.cleared, memo=line.description))
+                lines.append(_LineItem(account, -line.amount.amount, -line.amount.amount, cleared=transaction.cleared, memo=line.description))
         if transfer:
             transaction_type = self._transaction_type_transfer
         elif total > 0:
@@ -472,7 +471,7 @@ class Document:
         else:
             transaction_type = self._transaction_type_withdrawal
         entity = _Transaction(
-            currency=self._default_currency,
+            currency=self._currencies[total.currency],
             date=transaction.date,
             transaction_type=transaction_type,
             title=transaction.payee,
@@ -534,7 +533,7 @@ class Document:
         entity.id = not_none(element.get("id"))
         return entity
 
-    def _to_json(self, entity: _Entity) -> JSONType:
+    def _to_json(self, entity: _Entity) -> JSONObject:
         element = entity.to_element(self._converters, "entity")
         element.set("id", entity.id)
         entity_xml_str = ElementTree.tostring(element)

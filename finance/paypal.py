@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
-from decimal import Decimal
 
 import requests
 from requests.auth import HTTPBasicAuth
 
-from finance.core import BEGINNING, Account, AccountType, Line
+from finance.core import BEGINNING, Account, AccountType, Amount, Line
 from finance.core import Loader as BaseLoader
 from finance.core import Transaction
 from finance.typesafe import JSON
@@ -18,7 +17,7 @@ class Loader(BaseLoader):
         self._session.headers["Authorization"] = f"Bearer {token}"
 
     def load(self) -> list[Account]:
-        account = Account("paypal", "PayPal", AccountType.CURRENT, Decimal(0), "PayPal", "https://paypal.com")
+        account = Account("paypal", "PayPal", AccountType.CURRENT, Amount(), "PayPal", "https://paypal.com")
         transactions: dict[str, Transaction] = {}
         start = BEGINNING
         while start < datetime.now(BEGINNING.tzinfo):
@@ -39,7 +38,7 @@ class Loader(BaseLoader):
                 transaction_info = entry["transaction_info"]
                 assert transaction_info["transaction_amount"]["currency_code"].str == "EUR"
                 date = transaction_info["transaction_initiation_date"].strptime("%Y-%m-%dT%H:%M:%S%z").astimezone(BEGINNING.tzinfo)
-                amount = transaction_info["transaction_amount"]["value"].decimal
+                amount = Amount(transaction_info["transaction_amount"]["value"].decimal)
                 top_up = transaction_info["transaction_event_code"].str in {"T0300", "T0700"}
                 transaction = transactions.setdefault(transaction_info["paypal_reference_id" if top_up else "transaction_id"].str, Transaction(date, None, None, []))
                 assert transaction.date == date
@@ -48,13 +47,13 @@ class Loader(BaseLoader):
                 else:
                     transaction.payee = entry["payer_info"]["payer_name"]["alternate_full_name"].str
                     if lines := entry["cart_info"].get("item_details"):
-                        accumulated = Decimal(0)
-                        salex_tax = -transaction_info["sales_tax_amount"]["value"].decimal if "sales_tax_amount" in transaction_info else Decimal(0)
-                        shipping = -transaction_info["shipping_amount"]["value"].decimal if "shipping_amount" in transaction_info else Decimal(0)
+                        accumulated = Amount()
+                        salex_tax = Amount(-transaction_info["sales_tax_amount"]["value"].decimal) if "sales_tax_amount" in transaction_info else Amount()
+                        shipping = Amount(-transaction_info["shipping_amount"]["value"].decimal) if "shipping_amount" in transaction_info else Amount()
                         fees = salex_tax + shipping
-                        fee_coefficient = 1 + fees / (amount - fees)
+                        fee_coefficient = Amount(1) + fees / (amount - fees)
                         for line in lines:
-                            item_amount = round(-line["item_amount"]["value"].decimal * fee_coefficient, 2)
+                            item_amount = Amount(round(-line["item_amount"]["value"].decimal * fee_coefficient.amount, 2))
                             accumulated += item_amount
                             description = line.get("item_name")
                             transaction.lines.append(Line(account, item_amount, None, description.str if description else None))

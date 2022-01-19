@@ -10,10 +10,10 @@ from typing import TYPE_CHECKING, Iterator, Protocol, TypeVar, cast
 
 from requests.models import Response
 
-_AnyType = TypeVar("_AnyType")
+_AnyT = TypeVar("_AnyT")
 
 
-def not_none(optional: _AnyType | None) -> _AnyType:
+def not_none(optional: _AnyT | None) -> _AnyT:
     assert optional is not None
     return optional
 
@@ -24,33 +24,34 @@ def re_groups(match: re.Match[str] | None) -> tuple[str, ...]:
 
 if TYPE_CHECKING:
 
+    class JSONObject(dict[str, JSONType], Protocol):  # type: ignore  # noqa: F821 - false positive
+        __class__: type[dict[str, _JSONType]]  # type: ignore
+
     class _JSONArray(list[JSONType], Protocol):  # type: ignore  # noqa: F821 - false positive
-        __class__: type[list[JSONType]]  # type: ignore
+        __class__: type[list[_JSONType]]  # type: ignore
 
-    class _JSONObject(dict[str, JSONType], Protocol):  # type: ignore  # noqa: F821 - false positive
-        __class__: type[dict[str, JSONType]]  # type: ignore
+    _JSONType = str | int | bool | Decimal | _JSONArray | JSONObject | None  # noqa: WPS465 - false positive
 
-    JSONType = str | int | bool | Decimal | _JSONArray | _JSONObject | None  # noqa: WPS465 - false positive
-
-    _JSONType = TypeVar("_JSONType", bound=JSONType)
+    _JSONT = TypeVar("_JSONT", bound=_JSONType)
 else:
-    JSONType = object
+    JSONObject = object
+    _JSONType = object
 
 
 class JSON:
-    def __init__(self, body: JSONType):
+    def __init__(self, body: _JSONType):
         self.body = body
 
     @classmethod
     def loads(cls, json_str: str | bytes) -> JSON:
-        return cls(cast(JSONType, json.loads(json_str, parse_float=Decimal)))
+        return cls(cast(_JSONType, json.loads(json_str, parse_float=Decimal)))
 
     def dumps(self) -> str:
         return json.dumps(self.body)
 
     @classmethod
     def response(cls, json_response: Response) -> JSON:
-        return cls(cast(JSONType, json_response.json()))
+        return cls(cast(_JSONType, json_response.json(parse_float=Decimal)))
 
     @property
     def str(self) -> str:
@@ -64,7 +65,11 @@ class JSON:
 
     @property
     def decimal(self) -> Decimal:
-        return self.body if isinstance(self.body, Decimal) else Decimal(self.str)
+        if isinstance(self.body, Decimal):
+            return self.body
+        if isinstance(self.body, int):
+            return Decimal(self.int)
+        return Decimal(self.str)
 
     def __str__(self) -> string:
         return str(self.body)
@@ -93,4 +98,4 @@ class JSON:
 
     def _as_object(self) -> dict[string, JSON]:
         assert isinstance(self.body, dict)
-        return {key: JSON(child_value) for key, child_value in cast(dict[str, JSONType], self.body).items()}
+        return {key: JSON(child_value) for key, child_value in cast(dict[str, _JSONType], self.body).items()}

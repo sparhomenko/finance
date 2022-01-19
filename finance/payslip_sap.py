@@ -1,6 +1,5 @@
 import re
 from datetime import datetime
-from decimal import Decimal
 from enum import Enum, auto, unique
 from os import listdir
 from zoneinfo import ZoneInfo
@@ -9,7 +8,7 @@ from more_itertools import one
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LAParams, LTTextContainer
 
-from finance.core import BEGINNING, Account, AccountType, Category, Line
+from finance.core import BEGINNING, Account, AccountType, Amount, Category, Line
 from finance.core import Loader as BaseLoader
 from finance.core import Transaction
 from finance.typesafe import re_groups
@@ -29,7 +28,7 @@ class Loader(BaseLoader):
         self._number = number
 
     def load(self) -> list[Account]:
-        account = Account(self._number, self._name, AccountType.LIABILITY, Decimal(0), self._name, None)
+        account = Account(self._number, self._name, AccountType.LIABILITY, Amount(), self._name, None)
         for payslip_file in sorted(listdir(self._path)):
             match = re.match(r"\d+_(\d{4})_(\d{2})_Payslip.pdf", payslip_file)
             if not match:
@@ -62,7 +61,7 @@ class Loader(BaseLoader):
                         for index, pos in enumerate(range(0, len(text), 13)):
                             amount = text[pos : pos + 13].strip()
                             if amount:
-                                row[table_headers[index]] = self._to_decimal(amount)
+                                row[table_headers[index]] = self._to_amount(amount)
                         table[parts[0]] = row
                     elif section == _Section.CUMULATIVE:
                         if len(parts) % 2 == 0:
@@ -78,13 +77,13 @@ class Loader(BaseLoader):
             iban = list(table.keys())[-1]
             salary = table["Salary"]["Payment"]
             holiday = table["Holiday allowance"]["Payment"]
-            bonus = table.get("Annual Booking Bonus", {}).get("Spec.Payment", Decimal(0))
+            bonus = table.get("Annual Booking Bonus", {}).get("Spec.Payment", Amount())
             pension = table["Pension Contribution"]["Payment"]
             disability_gap_insurance = table["WIA-Gap insurance"]["Payment"]
             disability_surplus_insurance = table["WIA-Surplus insurance"]["Payment"]
             gross = table["Total Gross"]["Table Wage"]
             wfh = table["WFH allowance"]["Payment"]
-            booking = table.get("Booking Benefit (Nett)", {}).get("Payment", Decimal(0))
+            booking = table.get("Booking Benefit (Nett)", {}).get("Payment", Amount())
             payment = table["Payable Amount"]["Payment"]
             tax = table["Wage Tax [Loonheffing]"]["Payment"]
 
@@ -110,8 +109,8 @@ class Loader(BaseLoader):
             Transaction(date, self._name, f"Payslip {date.strftime('%B %Y')}", lines).complete(must_have=True)
         return [account]
 
-    def _to_decimal(self, text: str) -> Decimal:
+    def _to_amount(self, text: str) -> Amount:
         amount_str = text.replace(",", "")
         negative = amount_str.endswith("-")
-        amount = Decimal(amount_str.removesuffix("-"))
+        amount = Amount(amount_str.removesuffix("-"))
         return -amount if negative else amount
