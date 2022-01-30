@@ -301,7 +301,7 @@ pycodestyle = "*"
 
 [[package]]
 name = "flake8-black"
-version = "0.2.3"
+version = "0.2.4"
 description = "flake8 plugin to call black as a code style validator"
 category = "dev"
 optional = false
@@ -1172,7 +1172,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.2" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "a2417b50186aa91bbb57b03036c83a2e2ae48d05a8305521bd2296e7b80fcb02"
+content-hash = "e92ec030db3b462aafdefc37d2a1a47a6169557ae51a173cbc24d9d8233016c6"
 
 [metadata.files]
 astor = [
@@ -1385,8 +1385,8 @@ flake8-bandit = [
     {file = "flake8_bandit-2.1.2.tar.gz", hash = "sha256:687fc8da2e4a239b206af2e54a90093572a60d0954f3054e23690739b0b0de3b"},
 ]
 flake8-black = [
-    {file = "flake8-black-0.2.3.tar.gz", hash = "sha256:c199844bc1b559d91195ebe8620216f21ed67f2cc1ff6884294c91a0d2492684"},
-    {file = "flake8_black-0.2.3-py3-none-any.whl", hash = "sha256:cc080ba5b3773b69ba102b6617a00cc4ecbad8914109690cfda4d565ea435d96"},
+    {file = "flake8-black-0.2.4.tar.gz", hash = "sha256:a7871bfd1cbff431a1fc91ba60ae154510c80f575e6b9a2bbb13dfb4650afd22"},
+    {file = "flake8_black-0.2.4-py3-none-any.whl", hash = "sha256:0a70dfd97c8439827f365dc6dbc6c8c9cc087f0833625c6cc6848ff7876256be"},
 ]
 flake8-broken-line = [
     {file = "flake8-broken-line-0.4.0.tar.gz", hash = "sha256:771aab5aa0997666796fed249d0e48e6c01cdfeca8c95521eea28a38b7ced4c7"},
