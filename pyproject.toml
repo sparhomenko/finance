@@ -6,7 +6,7 @@ authors = ["Sergey Parhomenko <sergey@parhomenko.net>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "3.10.1" # renovate github-tags:python/cpython:^v(?<version>.*)$
+python = "3.10.2" # renovate github-tags:python/cpython:^v(?<version>.*)$
 "pdfminer.six" = "20211012"
 beautifulsoup4 = "4.10.0"
 bpylist2 = "4.0.1"
