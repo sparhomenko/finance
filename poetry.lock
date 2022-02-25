@@ -1067,7 +1067,7 @@ types-urllib3 = "<1.27"
 
 [[package]]
 name = "types-selenium"
-version = "3.141.7"
+version = "3.141.8"
 description = "Typing stubs for selenium"
 category = "dev"
 optional = false
@@ -1176,7 +1176,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.2" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "b71db261452aad037639ba719db8bd9253f758db2a2fd24aa36d3bdf498e0b06"
+content-hash = "8bc9b4d868151cdac816b71d1aa6eb30e842b3193ee1413d84c7cfbb587d75fb"
 
 [metadata.files]
 astor = [
@@ -1764,8 +1764,8 @@ types-requests = [
     {file = "types_requests-2.27.11-py3-none-any.whl", hash = "sha256:506279bad570c7b4b19ac1f22e50146538befbe0c133b2cea66a9b04a533a859"},
 ]
 types-selenium = [
-    {file = "types-selenium-3.141.7.tar.gz", hash = "sha256:5e8da51cc686cf3e4ffab12fce93773ffddc328b3ac17e110e7880b10eb7fdca"},
-    {file = "types_selenium-3.141.7-py3-none-any.whl", hash = "sha256:818cb11758ffa1313618e171dfc7b27d396ddadf80e41bed0dcaa1a4c7bd1d67"},
+    {file = "types-selenium-3.141.8.tar.gz", hash = "sha256:0d96f4c5bb9b328ab3ccffb03e686b9cd74c7da2e914a3fbb1874f7ee07759bd"},
+    {file = "types_selenium-3.141.8-py3-none-any.whl", hash = "sha256:2668132ceab6615a533ccea6216e64135df4d7835672fe886e6e772be484b979"},
 ]
 types-setuptools = [
     {file = "types-setuptools-57.4.7.tar.gz", hash = "sha256:9677d969b00ec1c14552f5be2b2b47a6fbea4d0ed4de0fdcee18abdaa0cc9267"},

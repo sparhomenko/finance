@@ -33,7 +33,7 @@ pip-audit = "2.0.0"
 pytest = "7.0.1"
 types-beautifulsoup4 = "4.10.12"
 types-requests = "2.27.11"
-types-selenium = "3.141.7"
+types-selenium = "3.141.8"
 wemake-python-styleguide = "0.16.0"
 
 [build-system]
