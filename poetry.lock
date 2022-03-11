@@ -678,7 +678,7 @@ flake8-polyfill = ">=1.0.2,<2"
 
 [[package]]
 name = "pip-api"
-version = "0.0.27"
+version = "0.0.28"
 description = "An unofficial, importable pip API"
 category = "dev"
 optional = false
@@ -686,7 +686,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "pip-audit"
-version = "2.0.0"
+version = "2.1.0"
 description = "A tool for scanning Python environments for known vulnerabilities"
 category = "dev"
 optional = false
@@ -694,15 +694,15 @@ python-versions = ">=3.7"
 
 [package.dependencies]
 CacheControl = {version = ">=0.12.10", extras = ["filecache"]}
-cyclonedx-python-lib = ">=1.0.0,<2.0.0"
+cyclonedx-python-lib = ">=1.0.0,<3.0.0"
 html5lib = ">=1.1"
 packaging = ">=21.0.0"
-pip-api = ">=0.0.27"
+pip-api = ">=0.0.28"
 progress = ">=1.6"
 resolvelib = ">=0.8.0"
 
 [package.extras]
-dev = ["bump", "flake8", "black", "isort", "pytest", "pytest-cov", "pretend", "coverage", "interrogate", "pdoc3", "mypy", "types-requests", "types-html5lib"]
+dev = ["bump (>=1.3.1)", "flake8", "black", "isort", "pytest", "pytest-cov", "pretend", "coverage", "interrogate", "pdoc3", "mypy", "types-requests", "types-html5lib"]
 
 [[package]]
 name = "platformdirs"
@@ -1177,7 +1177,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.2" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "5a3882a9b3ddc03650158b91d39a4e8bc0a142be09cbc68abf12f217a58b239a"
+content-hash = "1a897c76f14ef841098872f214540170881192fc23816b71e326bb96b29c184a"
 
 [metadata.files]
 astor = [
@@ -1596,12 +1596,12 @@ pep8-naming = [
     {file = "pep8_naming-0.12.1-py2.py3-none-any.whl", hash = "sha256:4a8daeaeb33cfcde779309fc0c9c0a68a3bbe2ad8a8308b763c5068f86eb9f37"},
 ]
 pip-api = [
-    {file = "pip-api-0.0.27.tar.gz", hash = "sha256:354825f2fa89b9b1c56e943be32823c09590e13055a57af5590456ff7d6524bd"},
-    {file = "pip_api-0.0.27-py3-none-any.whl", hash = "sha256:da0a10870b9105bc7ff7f347793db885c5c30102032de9112a6118b7af645478"},
+    {file = "pip-api-0.0.28.tar.gz", hash = "sha256:caabb697f40a2cfa6726405a7b90c8fd1794ec39ea383fa5313b3ff0ee88f001"},
+    {file = "pip_api-0.0.28-py3-none-any.whl", hash = "sha256:68631896064751baad4b6fc675bc1281a4aa930453f9c6a71b6c0de7aaf095c4"},
 ]
 pip-audit = [
-    {file = "pip-audit-2.0.0.tar.gz", hash = "sha256:f435c4a2fad527029761523b94342ea8b90e3062e270976c52e34bcb5a1a8a48"},
-    {file = "pip_audit-2.0.0-py3-none-any.whl", hash = "sha256:9d74a50661af43f0ee7773611d8e1851529fb1918bdba46f1ce210f6eb0f7db9"},
+    {file = "pip-audit-2.1.0.tar.gz", hash = "sha256:b987aa4c6b31e316db197d370443ff34053ca0400a27f7407e74a71d92006a89"},
+    {file = "pip_audit-2.1.0-py3-none-any.whl", hash = "sha256:5006fdefa17b97c9698eea007a39dfcb6c12529d2136047805ce7f25fec72ad5"},
 ]
 platformdirs = [
     {file = "platformdirs-2.4.1-py3-none-any.whl", hash = "sha256:1d7385c7db91728b83efd0ca99a5afb296cab9d0ed8313a45ed8ba17967ecfca"},
