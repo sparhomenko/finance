@@ -650,7 +650,7 @@ python-versions = ">=2.6"
 
 [[package]]
 name = "pdfminer.six"
-version = "20211012"
+version = "20220319"
 description = "PDF parser and analyzer"
 category = "main"
 optional = false
@@ -661,8 +661,9 @@ chardet = {version = "*", markers = "python_version > \"3.0\""}
 cryptography = "*"
 
 [package.extras]
-dev = ["nose", "tox", "mypy (==0.910)"]
+dev = ["black", "mypy (==0.931)", "nox", "pytest"]
 docs = ["sphinx", "sphinx-argparse"]
+image = ["pillow"]
 
 [[package]]
 name = "pep8-naming"
@@ -1177,7 +1178,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.3" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "5173ca574a3758b187278e3f078f515171fbc11f55a9e25a66be1bcae7748b6c"
+content-hash = "a3219e5c968d41fdcfbcf603e78e6a964c12f3ac15e3956eb9d9076712ff4870"
 
 [metadata.files]
 astor = [
@@ -1588,8 +1589,8 @@ pbr = [
     {file = "pbr-5.8.0.tar.gz", hash = "sha256:672d8ebee84921862110f23fcec2acea191ef58543d34dfe9ef3d9f13c31cddf"},
 ]
 "pdfminer.six" = [
-    {file = "pdfminer.six-20211012-py3-none-any.whl", hash = "sha256:d3efb75c0249b51c1bf795e3a8bddf1726b276c77bf75fb136adea471ee2825b"},
-    {file = "pdfminer.six-20211012.tar.gz", hash = "sha256:0351f17d362ee2d48b158be52bcde6576d96460efd038a3e89a043fba6d634d7"},
+    {file = "pdfminer.six-20220319-py3-none-any.whl", hash = "sha256:af0630f98a292bad4170f54e80f82ca81b916dd0b2c996437ec45c02f11d8762"},
+    {file = "pdfminer.six-20220319.tar.gz", hash = "sha256:eff2ce0abeaa4df94dc3461f70eab104487c7b4a2b3c7e9fd0aeec6c5f44d6a6"},
 ]
 pep8-naming = [
     {file = "pep8-naming-0.12.1.tar.gz", hash = "sha256:bb2455947757d162aa4cad55dba4ce029005cd1692f2899a21d51d8630ca7841"},
