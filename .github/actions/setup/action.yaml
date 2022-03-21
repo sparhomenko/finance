@@ -10,7 +10,7 @@ runs:
   - uses: actions/setup-python@v3.0.0
     with:
       python-version: v3.10.3  # renovate github-tags:python/cpython
-  - uses: actions/cache@v2.1.7
+  - uses: actions/cache@v3.0.0
     id: cache-poetry
     with:
       path: ${{ env.pythonLocation }}
@@ -22,7 +22,7 @@ runs:
     if: steps.cache-poetry.outputs.cache-hit != 'true'
     with:
       poetry-version: 1.1.13  # renovate pypi:poetry
-  - uses: actions/cache@v2.1.7
+  - uses: actions/cache@v3.0.0
     id: cache-deps
     with:
       path: ~/.cache/pypoetry
