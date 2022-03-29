@@ -687,7 +687,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "pip-audit"
-version = "2.1.0"
+version = "2.1.1"
 description = "A tool for scanning Python environments for known vulnerabilities"
 category = "dev"
 optional = false
@@ -703,7 +703,7 @@ progress = ">=1.6"
 resolvelib = ">=0.8.0"
 
 [package.extras]
-dev = ["bump (>=1.3.1)", "flake8", "black", "isort", "pytest", "pytest-cov", "pretend", "coverage", "interrogate", "pdoc3", "mypy", "types-requests", "types-html5lib"]
+dev = ["bump (>=1.3.1)", "flake8", "black (>=22.3.0)", "isort", "pytest", "pytest-cov", "pretend", "coverage", "interrogate", "pdoc3", "mypy", "types-requests", "types-html5lib"]
 
 [[package]]
 name = "platformdirs"
@@ -1178,7 +1178,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.4" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "c88081197bf16a82767e5a4fdb6f8398c98cb1b1ec35e875842cafc30f7ba11a"
+content-hash = "6c1f352582c682c21d5fa3450bdffa38ccb94b16100c93bac186571c4800b1e0"
 
 [metadata.files]
 astor = [
@@ -1601,8 +1601,8 @@ pip-api = [
     {file = "pip_api-0.0.28-py3-none-any.whl", hash = "sha256:68631896064751baad4b6fc675bc1281a4aa930453f9c6a71b6c0de7aaf095c4"},
 ]
 pip-audit = [
-    {file = "pip-audit-2.1.0.tar.gz", hash = "sha256:b987aa4c6b31e316db197d370443ff34053ca0400a27f7407e74a71d92006a89"},
-    {file = "pip_audit-2.1.0-py3-none-any.whl", hash = "sha256:5006fdefa17b97c9698eea007a39dfcb6c12529d2136047805ce7f25fec72ad5"},
+    {file = "pip-audit-2.1.1.tar.gz", hash = "sha256:3c131ecb11a1c2487d25abe36ef72ab407003a7ba3febd492566f6595a6797a2"},
+    {file = "pip_audit-2.1.1-py3-none-any.whl", hash = "sha256:e60626902d2ab7320fcb416e06cbcd8ed834398ea49d79ca266e1a78b5fbbcba"},
 ]
 platformdirs = [
     {file = "platformdirs-2.4.1-py3-none-any.whl", hash = "sha256:1d7385c7db91728b83efd0ca99a5afb296cab9d0ed8313a45ed8ba17967ecfca"},
