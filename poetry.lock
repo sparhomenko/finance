@@ -969,7 +969,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "srp"
-version = "1.0.18"
+version = "1.0.19"
 description = "Secure Remote Password"
 category = "main"
 optional = false
@@ -1178,7 +1178,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.4" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "6c1f352582c682c21d5fa3450bdffa38ccb94b16100c93bac186571c4800b1e0"
+content-hash = "ba7219876eda20ab45c3f548e1b7f25392911f62ede3353b6b42abfb2cd821c6"
 
 [metadata.files]
 astor = [
@@ -1734,7 +1734,7 @@ soupsieve = [
     {file = "soupsieve-2.3.1.tar.gz", hash = "sha256:b8d49b1cd4f037c7082a9683dfa1801aa2597fb11c3a1155b7a5b94829b4f1f9"},
 ]
 srp = [
-    {file = "srp-1.0.18.tar.gz", hash = "sha256:1582317ccd383dc39d54f223424c588254d73d1cfb2c5c24d945e018ec9516bb"},
+    {file = "srp-1.0.19.tar.gz", hash = "sha256:48e653e8c3f590909ba407306eb2e8460a2c7d1f86c56bce59cf42af54ff5d2a"},
 ]
 stevedore = [
     {file = "stevedore-3.5.0-py3-none-any.whl", hash = "sha256:a547de73308fd7e90075bb4d301405bebf705292fa90a90fc3bcf9133f58616c"},
