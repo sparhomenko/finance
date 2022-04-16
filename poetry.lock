@@ -1050,7 +1050,7 @@ wsproto = ">=0.14"
 
 [[package]]
 name = "types-beautifulsoup4"
-version = "4.10.19"
+version = "4.10.20"
 description = "Typing stubs for beautifulsoup4"
 category = "dev"
 optional = false
@@ -1178,7 +1178,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.4" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "8c9f73d77df7809fb1283ab08aff69d4ef93519453aadaa116d2a054c24f9f72"
+content-hash = "93cbf9f317f964a9118abebf771dc9d6757153cfe67c29db224eedbe3ba0474e"
 
 [metadata.files]
 astor = [
@@ -1761,8 +1761,8 @@ trio-websocket = [
     {file = "trio_websocket-0.9.2-py3-none-any.whl", hash = "sha256:5b558f6e83cc20a37c3b61202476c5295d1addf57bd65543364e0337e37ed2bc"},
 ]
 types-beautifulsoup4 = [
-    {file = "types-beautifulsoup4-4.10.19.tar.gz", hash = "sha256:dfbee0b788fdd0e59c2a62594b3152abff639bba5ad01e55628bd5e39adc8010"},
-    {file = "types_beautifulsoup4-4.10.19-py3-none-any.whl", hash = "sha256:209030fecc9770ebed79e94a308aa29009d53c81fe08f0b5dff1d837cd00bdd7"},
+    {file = "types-beautifulsoup4-4.10.20.tar.gz", hash = "sha256:856ddb741576a94764392cba81b9dcf07fc0fe005fc753e487e2e9e0db2324ca"},
+    {file = "types_beautifulsoup4-4.10.20-py3-none-any.whl", hash = "sha256:0be4be522ce340ff3f5540c416adfda305bbb4d14f3fecadc2a9086c1dbd4b32"},
 ]
 types-requests = [
     {file = "types-requests-2.27.18.tar.gz", hash = "sha256:10e3facc5126c11d523a5dd3f0c5c237c6a784d7dbc1ed2dcf38ab0b3ac919f7"},
