@@ -32,7 +32,7 @@ mypy = "0.942"
 pip-audit = "2.1.1"
 pytest = "7.1.1"
 types-beautifulsoup4 = "4.10.20"
-types-requests = "2.27.18"
+types-requests = "2.27.19"
 types-selenium = "3.141.9"
 wemake-python-styleguide = "0.16.1"
 
