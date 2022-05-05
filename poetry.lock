@@ -908,7 +908,7 @@ docutils = ">=0.11,<1.0"
 
 [[package]]
 name = "selenium"
-version = "4.1.3"
+version = "4.1.4"
 description = ""
 category = "main"
 optional = false
@@ -1178,7 +1178,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.4" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "2daa0b6d5060b856e95c71e9869a9023388ef3696a5966a54334e1a1e2c5f7df"
+content-hash = "3a414b88daa3fee6e1bc5b55c8a1a0155e34f1551e403870e57fb30fb4af68d2"
 
 [metadata.files]
 astor = [
@@ -1709,7 +1709,7 @@ restructuredtext-lint = [
     {file = "restructuredtext_lint-1.3.2.tar.gz", hash = "sha256:d3b10a1fe2ecac537e51ae6d151b223b78de9fafdd50e5eb6b08c243df173c80"},
 ]
 selenium = [
-    {file = "selenium-4.1.3-py3-none-any.whl", hash = "sha256:14d28a628c831c105d38305c881c9c7847199bfd728ec84240c5e86fa1c9bd5a"},
+    {file = "selenium-4.1.4-py3-none-any.whl", hash = "sha256:730061f1c6c1abb1f064928d719a9da3168999dbae49c6a9982d852ee8c47423"},
 ]
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
