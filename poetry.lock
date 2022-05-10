@@ -163,7 +163,7 @@ unicode_backport = ["unicodedata2"]
 
 [[package]]
 name = "chromedriver-binary-auto"
-version = "0.1.1"
+version = "0.1.2"
 description = "Installer for chromedriver."
 category = "main"
 optional = false
@@ -1178,7 +1178,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.4" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "15fde1ff719ef21680e0a1446d5c35fde607c20a6f482e92c810636b0532d61f"
+content-hash = "b8d72e4fc66a50730c5e1c0e316d8d87df14a9ef82806efb32894518f332d3e2"
 
 [metadata.files]
 astor = [
@@ -1307,7 +1307,7 @@ charset-normalizer = [
     {file = "charset_normalizer-2.0.10-py3-none-any.whl", hash = "sha256:cb957888737fc0bbcd78e3df769addb41fd1ff8cf950dc9e7ad7793f1bf44455"},
 ]
 chromedriver-binary-auto = [
-    {file = "chromedriver-binary-auto-0.1.1.tar.gz", hash = "sha256:7c0eee0eef320f31d0673d8d49412656eb22bf38d47c4c2783f4ea86802720b1"},
+    {file = "chromedriver-binary-auto-0.1.2.tar.gz", hash = "sha256:c646924c3c32dd27c7aab3ff818369f4629688de0bc958cdf9365ccc22596169"},
 ]
 click = [
     {file = "click-8.0.3-py3-none-any.whl", hash = "sha256:353f466495adaeb40b6b5f592f9f91cb22372351c84caeb068132442a4518ef3"},
