@@ -7,7 +7,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "3.10.4" # renovate github-tags:python/cpython:^v(?<version>.*)$
-"pdfminer.six" = "20220319"
+"pdfminer.six" = "20220506"
 beautifulsoup4 = "4.11.1"
 bpylist2 = "4.0.1"
 chromedriver-binary-auto = "0.1.2"
