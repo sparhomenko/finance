@@ -687,7 +687,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "pip-audit"
-version = "2.3.0"
+version = "2.3.1"
 description = "A tool for scanning Python environments for known vulnerabilities"
 category = "dev"
 optional = false
@@ -1178,7 +1178,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.4" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "af0adcd3f30efa984b16be1065ab93a2fcd8601585ba6ab7c3c2cabbdaa1b121"
+content-hash = "7af783e23af603f1d3fe96a4c6b64b7ea09c6266083af7ac42c2ce41b4b658f8"
 
 [metadata.files]
 astor = [
@@ -1603,8 +1603,8 @@ pip-api = [
     {file = "pip_api-0.0.28-py3-none-any.whl", hash = "sha256:68631896064751baad4b6fc675bc1281a4aa930453f9c6a71b6c0de7aaf095c4"},
 ]
 pip-audit = [
-    {file = "pip_audit-2.3.0-py3-none-any.whl", hash = "sha256:dececec9e7bbb7aa6335fddba8a47b0271122129e2894e9ee0691dd6bb6aeb01"},
-    {file = "pip_audit-2.3.0.tar.gz", hash = "sha256:95326d536eab1f60df0c36193675c2ab0777de3ef1b3af98ebfc378159b0bed5"},
+    {file = "pip_audit-2.3.1-py3-none-any.whl", hash = "sha256:9a570e31b591b91760b75985cf2acc0f6051da072d036c7dc511bf5152b2e8f3"},
+    {file = "pip_audit-2.3.1.tar.gz", hash = "sha256:3667f2024033b1e01bda44f6f64674cc1b684254c1d5b9065d53c1d85e521075"},
 ]
 platformdirs = [
     {file = "platformdirs-2.4.1-py3-none-any.whl", hash = "sha256:1d7385c7db91728b83efd0ca99a5afb296cab9d0ed8313a45ed8ba17967ecfca"},
