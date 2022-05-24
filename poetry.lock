@@ -143,14 +143,6 @@ python-versions = "*"
 pycparser = "*"
 
 [[package]]
-name = "chardet"
-version = "4.0.0"
-description = "Universal encoding detector for Python 2 and 3"
-category = "main"
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-
-[[package]]
 name = "charset-normalizer"
 version = "2.0.10"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
@@ -650,15 +642,15 @@ python-versions = ">=2.6"
 
 [[package]]
 name = "pdfminer.six"
-version = "20220319"
+version = "20220524"
 description = "PDF parser and analyzer"
 category = "main"
 optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
-chardet = {version = "*", markers = "python_version > \"3.0\""}
-cryptography = "*"
+charset-normalizer = ">=2.0.0"
+cryptography = ">=36.0.0"
 
 [package.extras]
 dev = ["black", "mypy (==0.931)", "nox", "pytest"]
@@ -1178,7 +1170,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.4" # renovate github-tags:python/cpython:^v(?<version>.*)$
-content-hash = "7af783e23af603f1d3fe96a4c6b64b7ea09c6266083af7ac42c2ce41b4b658f8"
+content-hash = "57c96b9e48d50690858a706926e0fb0dce019b7437b023fe81840010edf7b79a"
 
 [metadata.files]
 astor = [
@@ -1297,10 +1289,6 @@ cffi = [
     {file = "cffi-1.15.0-cp39-cp39-win32.whl", hash = "sha256:2a23af14f408d53d5e6cd4e3d9a24ff9e05906ad574822a10563efcef137979a"},
     {file = "cffi-1.15.0-cp39-cp39-win_amd64.whl", hash = "sha256:3773c4d81e6e818df2efbc7dd77325ca0dcb688116050fb2b3011218eda36139"},
     {file = "cffi-1.15.0.tar.gz", hash = "sha256:920f0d66a896c2d99f0adbb391f990a84091179542c205fa53ce5787aff87954"},
-]
-chardet = [
-    {file = "chardet-4.0.0-py2.py3-none-any.whl", hash = "sha256:f864054d66fd9118f2e67044ac8981a54775ec5b67aed0441892edb553d21da5"},
-    {file = "chardet-4.0.0.tar.gz", hash = "sha256:0d6f53a15db4120f2b08c94f11e7d93d2c911ee118b6b30a04ec3ee8310179fa"},
 ]
 charset-normalizer = [
     {file = "charset-normalizer-2.0.10.tar.gz", hash = "sha256:876d180e9d7432c5d1dfd4c5d26b72f099d503e8fcc0feb7532c9289be60fcbd"},
@@ -1591,8 +1579,8 @@ pbr = [
     {file = "pbr-5.8.0.tar.gz", hash = "sha256:672d8ebee84921862110f23fcec2acea191ef58543d34dfe9ef3d9f13c31cddf"},
 ]
 "pdfminer.six" = [
-    {file = "pdfminer.six-20220319-py3-none-any.whl", hash = "sha256:af0630f98a292bad4170f54e80f82ca81b916dd0b2c996437ec45c02f11d8762"},
-    {file = "pdfminer.six-20220319.tar.gz", hash = "sha256:eff2ce0abeaa4df94dc3461f70eab104487c7b4a2b3c7e9fd0aeec6c5f44d6a6"},
+    {file = "pdfminer.six-20220524-py3-none-any.whl", hash = "sha256:7e19b857ec76bcbd35665909ad8965a481ad48d9bdff6c45f8522ee66f8a7aab"},
+    {file = "pdfminer.six-20220524.tar.gz", hash = "sha256:5a64c924410ac48501d6060b21638bf401db69f5b1bd57207df7fbc070ac8ae2"},
 ]
 pep8-naming = [
     {file = "pep8-naming-0.12.1.tar.gz", hash = "sha256:bb2455947757d162aa4cad55dba4ce029005cd1692f2899a21d51d8630ca7841"},
