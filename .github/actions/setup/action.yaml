@@ -7,7 +7,7 @@ outputs:
 runs:
   using: composite
   steps:
-  - uses: actions/setup-python@v3.1.2
+  - uses: actions/setup-python@v4.0.0
     with:
       python-version: v3.10.5  # renovate github-tags:python/cpython
   - uses: actions/cache@v3.0.4
