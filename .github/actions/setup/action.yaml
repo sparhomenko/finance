@@ -18,7 +18,7 @@ runs:
     env:
       PYTHON_VERSION: v3.10.5  # renovate github-tags:python/cpython
       POETRY_VERSION: 1.1.13  # renovate pypi:poetry
-  - uses: abatilo/actions-poetry@v2.1.4
+  - uses: abatilo/actions-poetry@v2.1.5
     if: steps.cache-poetry.outputs.cache-hit != 'true'
     with:
       poetry-version: 1.1.13  # renovate pypi:poetry
