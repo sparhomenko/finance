@@ -17,11 +17,11 @@ runs:
       key: poetry-${{ env.PYTHON_VERSION }}-v${{ env.POETRY_VERSION }}
     env:
       PYTHON_VERSION: v3.10.6  # renovate github-tags:python/cpython
-      POETRY_VERSION: 1.1.14  # renovate pypi:poetry
+      POETRY_VERSION: 1.7.1  # renovate pypi:poetry
   - uses: abatilo/actions-poetry@v2.1.5
     if: steps.cache-poetry.outputs.cache-hit != 'true'
     with:
-      poetry-version: 1.1.14  # renovate pypi:poetry
+      poetry-version: 1.7.1  # renovate pypi:poetry
   - uses: actions/cache@v3.0.6
     id: cache-deps
     with:
