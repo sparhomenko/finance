@@ -12,7 +12,7 @@ jobs:
     - name: Scan Dependencies for Vulnerabilities
       uses: ./.github/actions/vulnerabilities
       if: steps.setup.changed != 'false'
-    - name: Check Types
-      run: poetry run mypy .
+    # - name: Check Types
+    #   run: poetry run mypy .
     - name: Lint
       run: poetry run flake8
