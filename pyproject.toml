@@ -23,7 +23,7 @@ srp = "1.0.19"
 [tool.poetry.dev-dependencies]
 autopep8 = "1.6.0"
 black = {version = "22.6.0", allow-prereleases = true}
-colorama = "0.4.4"
+colorama = "0.4.6"
 coverage = "6.4.2"
 flake8 = "6.1.0"
 flake8-black = "0.3.6"
