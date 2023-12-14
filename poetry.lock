@@ -464,17 +464,16 @@ sortedcontainers = ">=2.4.0,<3.0.0"
 
 [[package]]
 name = "dacite"
-version = "1.6.0"
+version = "1.8.1"
 description = "Simple creation of data classes from dictionaries."
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "dacite-1.6.0-py3-none-any.whl", hash = "sha256:4331535f7aabb505c732fa4c3c094313fc0a1d5ea19907bf4726a7819a68b93f"},
-    {file = "dacite-1.6.0.tar.gz", hash = "sha256:d48125ed0a0352d3de9f493bf980038088f45f3f9d7498f090b50a847daaa6df"},
+    {file = "dacite-1.8.1-py3-none-any.whl", hash = "sha256:cc31ad6fdea1f49962ea42db9421772afe01ac5442380d9a99fcf3d188c61afe"},
 ]
 
 [package.extras]
-dev = ["black", "coveralls", "mypy", "pylint", "pytest (>=5)", "pytest-cov"]
+dev = ["black", "coveralls", "mypy", "pre-commit", "pylint", "pytest (>=5)", "pytest-benchmark", "pytest-cov"]
 
 [[package]]
 name = "defusedxml"
@@ -1373,4 +1372,4 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "2.0"
 python-versions = "3.12.1"
-content-hash = "c7bafecf4d2a254b0324f0ea57196839fe7a5e6f71460c5d71a970cd8b59e5bf"
+content-hash = "ffbce6841bbf233b87489183def1b1269d8dab63e14eb86dafd2f9af6c0b5b7b"
