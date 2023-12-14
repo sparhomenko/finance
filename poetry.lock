@@ -1222,12 +1222,13 @@ files = [
 
 [[package]]
 name = "srp"
-version = "1.0.19"
+version = "1.0.20"
 description = "Secure Remote Password"
 optional = false
 python-versions = "*"
 files = [
-    {file = "srp-1.0.19.tar.gz", hash = "sha256:48e653e8c3f590909ba407306eb2e8460a2c7d1f86c56bce59cf42af54ff5d2a"},
+    {file = "srp-1.0.20-py3-none-any.whl", hash = "sha256:ad55b94e26e1152db83b57b50d7b365a7a9b6c39d0d1cd762f0642e478b4bdc0"},
+    {file = "srp-1.0.20.tar.gz", hash = "sha256:2db453bdce26b9eead367a7b5783074ef80e8482bf30c0140a7b89836a054707"},
 ]
 
 [package.dependencies]
@@ -1372,4 +1373,4 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "2.0"
 python-versions = "3.12.1"
-content-hash = "5bbc3247b9969ae89adf8668bfdbffdb9ddcf75ef9c624c2b8332771cbda4ec9"
+content-hash = "4dd9a956f10d8bdeb6caa92fd981e4a11c239d89738ee5feb350624613ce7363"
