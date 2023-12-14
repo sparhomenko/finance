@@ -1283,13 +1283,27 @@ wsproto = ">=0.14"
 
 [[package]]
 name = "types-beautifulsoup4"
-version = "4.11.4"
+version = "4.12.0.7"
 description = "Typing stubs for beautifulsoup4"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "types-beautifulsoup4-4.12.0.7.tar.gz", hash = "sha256:59980028d29bf55d0db359efa305b75bacf0cb92e3f3f6b3fd408f2531df274c"},
+    {file = "types_beautifulsoup4-4.12.0.7-py3-none-any.whl", hash = "sha256:8b03b054cb2e62abf82bbbeda57a07257026f4ed9010ef17d8f8eff43bb1f9b7"},
+]
+
+[package.dependencies]
+types-html5lib = "*"
+
+[[package]]
+name = "types-html5lib"
+version = "1.1.11.15"
+description = "Typing stubs for html5lib"
 optional = false
 python-versions = "*"
 files = [
-    {file = "types-beautifulsoup4-4.11.4.tar.gz", hash = "sha256:50111f84c2a42a0ff890acfa0f3a79f627e2852456ff4df32fd54cf42fd197de"},
-    {file = "types_beautifulsoup4-4.11.4-py3-none-any.whl", hash = "sha256:461aead477fa4e110d2e135509f1bee847f3cada404cb6f969eb66d330a792b9"},
+    {file = "types-html5lib-1.1.11.15.tar.gz", hash = "sha256:80e1a2062d22a3affe5c28d97da30bffbf3a076d393c80fc6f1671216c1bd492"},
+    {file = "types_html5lib-1.1.11.15-py3-none-any.whl", hash = "sha256:16fe936d99b9f7fc210e2e21a2aed1b6bbbc554ad8242a6ef75f6f2bddb27e58"},
 ]
 
 [[package]]
@@ -1375,4 +1389,4 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "2.0"
 python-versions = "3.12.1"
-content-hash = "50c0cffcc9b28e30ff061ca6dcd21c790f9478128e7314c41f65097748e089a3"
+content-hash = "82f5eb44afeb4ff6ebc128825fe2d931111b778dbce16ab078e77471df6841ff"
