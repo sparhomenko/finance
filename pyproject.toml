@@ -18,7 +18,7 @@ more-itertools = "8.13.0"
 pyotp = "2.6.0"
 requests = "2.31.0"
 selenium = "4.16.0"
-srp = "1.0.19"
+srp = "1.0.20"
 
 [tool.poetry.dev-dependencies]
 autopep8 = "1.6.0"
