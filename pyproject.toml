@@ -37,7 +37,7 @@ types-selenium = "3.141.9"
 # wemake-python-styleguide = "0.18.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.8.1"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
