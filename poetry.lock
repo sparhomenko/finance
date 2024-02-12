@@ -957,13 +957,13 @@ pip = "*"
 
 [[package]]
 name = "pip-audit"
-version = "2.7.0"
+version = "2.7.1"
 description = "A tool for scanning Python environments for known vulnerabilities"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pip_audit-2.7.0-py3-none-any.whl", hash = "sha256:83e039740653eb9ef1a78b1540ed441600cd88a560588ba2c0a169180685a522"},
-    {file = "pip_audit-2.7.0.tar.gz", hash = "sha256:67740c5b1d5d967a258c3dfefc46f9713a2819c48062505ddf4b29de101c2b75"},
+    {file = "pip_audit-2.7.1-py3-none-any.whl", hash = "sha256:b9b4230d1ac685d669b4a36b1d5f849ea3d1ce371501aff73047bd278b22c055"},
+    {file = "pip_audit-2.7.1.tar.gz", hash = "sha256:66001c73bc6e5ebc998ef31a32432f7b479dc3bfeb40f7101d0fe7eb564a2c2a"},
 ]
 
 [package.dependencies]
@@ -980,7 +980,7 @@ toml = ">=0.10"
 [package.extras]
 dev = ["build", "bump (>=1.3.2)", "pip-audit[doc,lint,test]"]
 doc = ["pdoc"]
-lint = ["interrogate", "mypy", "ruff (<0.1.12)", "types-html5lib", "types-requests", "types-toml"]
+lint = ["interrogate", "mypy", "ruff (<0.2.2)", "types-html5lib", "types-requests", "types-toml"]
 test = ["coverage[toml] (>=7.0,!=7.3.3,<8.0)", "pretend", "pytest", "pytest-cov"]
 
 [[package]]
@@ -1422,4 +1422,4 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "2.0"
 python-versions = "3.12.1"
-content-hash = "73b32789daa0749bc66ee9ecee56874bb90df38846a8f6cb96b013fb92c6886f"
+content-hash = "cb87eb2ccedd0ece472855e394bff7982b6948ab4c6ca27155dff9dee5e852e5"
